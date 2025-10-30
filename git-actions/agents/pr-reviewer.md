@@ -1,7 +1,7 @@
 ---
 name: pr-reviewer
 description: Expert code reviewer that analyzes pull requests comprehensively. Reviews code quality, identifies bugs, assesses test coverage, evaluates documentation, and provides actionable feedback. Use when reviewing GitHub pull requests.
-model: opus
+model: sonnet
 color: purple
 ---
 

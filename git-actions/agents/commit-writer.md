@@ -1,7 +1,7 @@
 ---
 name: commit-writer
 description: Expert at writing concise, information-dense commit messages following best practices. Analyzes git changes and creates atomic commits with clear, purposeful messages. Use when committing code changes.
-model: opus
+model: sonnet
 color: blue
 ---
 
