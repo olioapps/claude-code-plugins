@@ -1,0 +1,9 @@
+{
+  "name": "git-actions",
+  "version": "1.0.0",
+  "description": "Automated git workflow with AI-powered commit messages and PR management. Includes commands for commits, PR creation/editing, and comprehensive PR reviews.",
+  "author": {
+    "name": "Dustin Herboldshimer",
+    "email": "dustin.herboldshimer@olioapps.com"
+  }
+}
