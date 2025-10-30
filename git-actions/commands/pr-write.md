@@ -1,6 +1,6 @@
 ---
 allowed-tools: Task, Bash(git:*), Bash(gh pr create:*)
-argument-hint: [base-branch]
+argument-hint: [base-branch] [additional context]
 description: Create draft PR with AI-generated description (default: main)
 ---
 
@@ -11,9 +11,24 @@ Create PR using `pr-creator` agent + `gh` CLI.
 Arguments: `/pr:write:$ARGUMENTS`
 - **base-branch** - target branch (e.g., "main", "develop", "development")
 - **(empty)** - default: main
+- **[additional context]** - optional text after base-branch for custom instructions
+
+**Examples:**
+- `/pr:write` - Create PR to main with standard description
+- `/pr:write develop` - Create PR to develop branch
+- `/pr:write main focus on security changes` - Emphasize security in description
+- `/pr:write brief format` - Use minimal PR description format
 
 Current: !`git branch --show-current`
 Status: !`git status --short`
+
+## Additional Context Handling
+
+**If additional context is provided after the base-branch argument:**
+1. Parse it as custom instructions from the user
+2. Pass it to the pr-creator agent with HIGHEST PRIORITY
+3. Agent must follow these instructions even if they conflict with defaults
+4. Example: User says "brief format" → agent uses minimal sections
 
 ## Pre-flight Checks
 
@@ -75,11 +90,20 @@ Context:
 - base: $base
 - action: create PR
 
+[IF ADDITIONAL CONTEXT WAS PROVIDED:]
+ADDITIONAL CONTEXT (HIGHEST PRIORITY - OVERRIDES ALL DEFAULTS):
+[insert additional context here]
+
+YOU MUST follow the additional context instructions above, even if they
+conflict with standard PR formatting guidelines. User/system requirements
+take precedence over default best practices.
+
 Agent tasks:
 1. analyze commits: git log origin/$base..HEAD
 2. analyze diff: git diff origin/$base...HEAD
-3. reference pr-formatting skill
-4. generate: title, summary, changes, testing, deployment, links
+3. apply PR formatting best practices (embedded in agent)
+4. apply any additional context instructions (these override defaults)
+5. generate: title, summary, changes, testing, deployment, links
 
 Return: title + body for gh pr create
 ```

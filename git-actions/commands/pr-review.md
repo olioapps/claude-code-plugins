@@ -1,6 +1,6 @@
 ---
 allowed-tools: Task, Bash(gh pr:*), Bash(gh api:*)
-argument-hint: <pr-number-or-url>
+argument-hint: <pr-number-or-url> [additional context]
 description: AI-powered comprehensive PR review
 ---
 
@@ -12,6 +12,21 @@ Arguments: `/pr:review:$ARGUMENTS`
 - **pr-number** - review PR #123
 - **pr-url** - review from GitHub URL
 - **(empty)** - review current branch PR
+- **[additional context]** - optional text after pr-number for custom instructions
+
+**Examples:**
+- `/pr:review` - Review current branch PR comprehensively
+- `/pr:review 123` - Review PR #123
+- `/pr:review 123 focus on security` - Security-focused review
+- `/pr:review quick review` - Fast review of critical issues only
+
+## Additional Context Handling
+
+**If additional context is provided after the pr-number argument:**
+1. Parse it as custom instructions from the user
+2. Pass it to the pr-reviewer agent with HIGHEST PRIORITY
+3. Agent must follow these instructions even if they conflict with defaults
+4. Example: User says "focus on security" → agent prioritizes security analysis
 
 ## Pre-flight
 
@@ -101,6 +116,14 @@ $comments
 Project guidelines:
 $guidelines
 
+[IF ADDITIONAL CONTEXT WAS PROVIDED:]
+ADDITIONAL CONTEXT (HIGHEST PRIORITY - OVERRIDES ALL DEFAULTS):
+[insert additional context here]
+
+YOU MUST follow the additional context instructions above, even if they
+conflict with standard review criteria. User/system requirements take
+precedence over default review process.
+
 Agent tasks:
 1. Multi-dimensional analysis:
    - code quality (40%)
@@ -108,10 +131,12 @@ Agent tasks:
    - testing (15%)
    - documentation (10%)
    - performance (5%)
+   - ADJUST WEIGHTS if additional context specifies focus areas
 
 2. Apply confidence scoring (0-100)
-3. Report issues with confidence ≥70
-4. Format output:
+3. Report issues with confidence ≥70 (or as specified in additional context)
+4. Apply any additional context instructions (these override defaults)
+5. Format output:
    - critical (90-100)
    - important (70-89)
    - observations (50-69)
@@ -119,8 +144,8 @@ Agent tasks:
    - testing/docs assessment
    - recommendation (approve/changes/comment)
 
-5. DO NOT duplicate existing comments
-6. Build on existing feedback
+6. DO NOT duplicate existing comments
+7. Build on existing feedback
 
 Return: structured review markdown
 ```

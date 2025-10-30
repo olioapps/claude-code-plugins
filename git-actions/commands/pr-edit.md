@@ -1,6 +1,6 @@
 ---
 allowed-tools: Task, Bash(git:*), Bash(gh pr:*)
-argument-hint: [pr-number]
+argument-hint: [pr-number] [additional context]
 description: Update PR description (existing or draft preview)
 ---
 
@@ -11,8 +11,22 @@ Update PR description using `pr-creator` agent.
 Arguments: `/pr:edit:$ARGUMENTS`
 - **pr-number/url** - update specific PR
 - **(empty)** - update current branch PR or create draft
+- **[additional context]** - optional text after pr-number for custom instructions
+
+**Examples:**
+- `/pr:edit` - Update current branch PR
+- `/pr:edit 123` - Update PR #123
+- `/pr:edit 123 add performance metrics` - Update with focus on performance
+- `/pr:edit brief format` - Update current PR with minimal description
 
 Current: !`git branch --show-current`
+
+## Additional Context Handling
+
+**If additional context is provided after the pr-number argument:**
+1. Parse it as custom instructions from the user
+2. Pass it to the pr-creator agent with HIGHEST PRIORITY
+3. Agent must follow these instructions even if they conflict with defaults
 
 ## Determine Mode
 
@@ -55,11 +69,20 @@ Context:
 - current: title="$current_title", body="$current_body"
 - branches: $base ← $head
 
+[IF ADDITIONAL CONTEXT WAS PROVIDED:]
+ADDITIONAL CONTEXT (HIGHEST PRIORITY - OVERRIDES ALL DEFAULTS):
+[insert additional context here]
+
+YOU MUST follow the additional context instructions above, even if they
+conflict with standard PR formatting guidelines. User/system requirements
+take precedence over default best practices.
+
 Agent tasks:
 1. analyze commits in branch
 2. analyze diff vs base
-3. generate updated description
-4. reference pr-formatting skill
+3. apply PR formatting best practices (embedded in agent)
+4. apply any additional context instructions (these override defaults)
+5. generate updated description
 
 Return: updated title + body
 ```
@@ -100,11 +123,20 @@ Context:
 - base: $base
 - commits: $commits
 
+[IF ADDITIONAL CONTEXT WAS PROVIDED:]
+ADDITIONAL CONTEXT (HIGHEST PRIORITY - OVERRIDES ALL DEFAULTS):
+[insert additional context here]
+
+YOU MUST follow the additional context instructions above, even if they
+conflict with standard PR formatting guidelines. User/system requirements
+take precedence over default best practices.
+
 Agent tasks:
 1. analyze: git log origin/$base..HEAD
 2. analyze: git diff origin/$base...HEAD
-3. generate draft PR description
-4. reference pr-formatting skill
+3. apply PR formatting best practices (embedded in agent)
+4. apply any additional context instructions (these override defaults)
+5. generate draft PR description
 
 Return: draft title + body
 ```

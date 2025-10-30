@@ -1,6 +1,6 @@
 ---
 allowed-tools: Task
-argument-hint: [all|staged]
+argument-hint: [all|staged] [additional context]
 description: Create commits with AI-generated messages (/commit:all or /commit:staged)
 ---
 
@@ -12,8 +12,24 @@ Arguments: `/commit:$ARGUMENTS`
 - **all** - stage all changes, create commit
 - **staged** - commit staged changes only
 - **(empty)** - default: staged if any exist, else all
+- **[additional context]** - optional text after the mode argument for custom instructions
+
+**Examples:**
+- `/commit:all` - Standard commit with all changes
+- `/commit:staged` - Commit staged changes only
+- `/commit:all use conventional commits format` - Override style
+- `/commit:staged keep it under 40 chars` - Length constraint
+- `/commit:all emphasize performance improvements` - Focus guidance
 
 Current status: !`git status --short`
+
+## Additional Context Handling
+
+**If additional context is provided after the mode argument:**
+1. Parse it as custom instructions from the user
+2. Pass it to the commit-writer agent with HIGHEST PRIORITY
+3. Agent must follow these instructions even if they conflict with defaults
+4. Example: User says "no body" → agent must not include body, even for complex changes
 
 ## Task
 
@@ -68,11 +84,20 @@ Mode: [staged-only or stage-all based on Step 1]
 Action: Analyze changes and generate commit message
 Analyze: git diff --staged
 
+[IF ADDITIONAL CONTEXT WAS PROVIDED:]
+ADDITIONAL CONTEXT (HIGHEST PRIORITY - OVERRIDES ALL DEFAULTS):
+[insert additional context here]
+
+YOU MUST follow the additional context instructions above, even if they
+conflict with standard best practices. User/system requirements take
+precedence over default guidelines.
+
 YOU MUST ONLY:
 1. Run git status and git diff --staged
 2. Review recent commits (git log --oneline -10)
 3. Generate a commit message following best practices
-4. Return ONLY the message in this format:
+4. Apply any additional context instructions (these override defaults)
+5. Return ONLY the message in this format:
 
 ## Generated Commit Message
 
