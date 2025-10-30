@@ -58,17 +58,81 @@ Use commit-writer agent.
 - analyze: git diff --staged
 ```
 
+## Workflow
+
+### Step 1: Gather File Information
+
+First, gather staged file information to present to the user:
+
+```bash
+# Count staged files
+git diff --cached --name-only | wc -l
+
+# Get staged files list
+git diff --cached --name-only
+```
+
+**File Presentation Rules:**
+- If ≤10 files: List all files individually
+- If >10 files: Summarize by category/directory (e.g., "15 files in src/", "3 config files", etc.)
+
+### Step 2: Generate Commit Message
+
+Invoke `commit-writer` agent to **GENERATE ONLY** (do NOT execute commit):
+
+**For /commit:all:**
+```
+Use commit-writer agent.
+- stage-all mode
+- include untracked files
+- analyze: git diff HEAD
+- GENERATE MESSAGE ONLY - DO NOT EXECUTE GIT COMMIT
+- Return the commit message for user review
+```
+
+**For /commit:staged:**
+```
+Use commit-writer agent.
+- staged-only mode
+- analyze: git diff --staged
+- GENERATE MESSAGE ONLY - DO NOT EXECUTE GIT COMMIT
+- Return the commit message for user review
+```
+
+### Step 3: Present for Verification
+
+Present the generated commit message to the user along with:
+1. The commit message (subject + body if any)
+2. Staged files list (or summary if >10)
+3. File change statistics (+X -Y lines)
+
+Use AskUserQuestion tool with options:
+- "Approve and commit" - Execute the commit as-is
+- "Edit message" - Allow user to modify the message
+- "Cancel" - Abort the commit
+
+### Step 4: Execute or Cancel
+
+**If approved:**
+- Execute git commit with the generated message
+- Return commit SHA and confirmation
+
+**If edit requested:**
+- Prompt user for modified message
+- Execute git commit with user's message
+- Return commit SHA and confirmation
+
+**If cancelled:**
+- Do nothing, inform user commit was cancelled
+
 ## Rules
 
-1. Use Task tool to invoke agent (no direct git commands)
-2. Pass mode in agent context
-3. Agent executes:
-   - analyze changes
-   - reference commit-best-practices skill
-   - create commit message
-   - execute git commit
-   - return SHA + summary
-4. Wait for agent response
+1. **ALWAYS require user verification** - Never auto-commit without approval
+2. Use Task tool to invoke commit-writer agent for message generation
+3. Agent must generate message only, NOT execute commit
+4. Present file list intelligently (full list if ≤10, summary if >10)
+5. Use AskUserQuestion for verification
+6. Execute commit only after user approval
 
 ## Examples
 
