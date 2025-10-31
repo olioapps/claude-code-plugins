@@ -1,5 +1,5 @@
 ---
-allowed-tools: Task
+allowed-tools: Task, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(git rev-list:*)
 argument-hint: [all|staged] [additional context]
 description: Create commits with AI-generated messages (/commit:all or /commit:staged)
 ---
@@ -75,44 +75,28 @@ git diff --cached --stat
 
 ### Step 3: Generate Commit Message (Agent)
 
-**YOU invoke the commit-writer agent with EXPLICIT instructions:**
+**YOU invoke the commit-writer agent:**
 
 ```
-CRITICAL: GENERATE MESSAGE ONLY - DO NOT EXECUTE GIT COMMIT
+Use commit-writer agent.
 
-Mode: [staged-only or stage-all based on Step 1]
-Action: Analyze changes and generate commit message
-Analyze: git diff --staged
+Context:
+- mode: [staged-only or stage-all based on Step 1]
+- action: generate commit message
 
 [IF ADDITIONAL CONTEXT WAS PROVIDED:]
 ADDITIONAL CONTEXT (HIGHEST PRIORITY - OVERRIDES ALL DEFAULTS):
 [insert additional context here]
 
-YOU MUST follow the additional context instructions above, even if they
-conflict with standard best practices. User/system requirements take
-precedence over default guidelines.
+The commit-writer agent will:
+- Gather all necessary git context
+- Analyze changes for atomicity and purpose
+- Match repository commit style conventions
+- Generate concise, information-dense commit message
+- Return structured message (subject, body, footer)
 
-YOU MUST ONLY:
-1. Run git status and git diff --staged
-2. Review recent commits (git log --oneline -10)
-3. Generate a commit message following best practices
-4. Apply any additional context instructions (these override defaults)
-5. Return ONLY the message in this format:
-
-## Generated Commit Message
-
-Subject: [subject line]
-
-Body:
-[body paragraphs if needed]
-
-Footer:
-[footer if needed]
-
-DO NOT run git add
-DO NOT run git commit
-DO NOT execute any git commands that modify the repository
-ONLY return the generated message
+YOU (command handler) do NOT need to know how the agent formats commits.
+The agent owns all message generation logic.
 ```
 
 ### Step 4: Present for User Approval
@@ -180,9 +164,9 @@ YOU inform user: "Commit cancelled. No changes were committed."
 ## Critical Rules - Separation of Responsibilities
 
 ### Command Handler (YOU) Responsibilities:
-1. ✅ Stage files (if /commit:all)
+1. ✅ Stage files (if /commit:all) - requires user approval
 2. ✅ Gather file information and stats
-3. ✅ Invoke commit-writer agent with "GENERATE ONLY" instructions
+3. ✅ Invoke commit-writer agent with context
 4. ✅ Present message to user for approval
 5. ✅ Use AskUserQuestion for verification
 6. ✅ Execute `git commit` ONLY after user approves
@@ -190,18 +174,16 @@ YOU inform user: "Commit cancelled. No changes were committed."
 8. ✅ Report final commit SHA
 
 ### Commit-Writer Agent Responsibilities:
-1. ✅ Analyze git changes (status, diff, log)
-2. ✅ Generate commit message following best practices
-3. ✅ Return ONLY the message (no execution)
-4. ❌ NEVER stage files
-5. ❌ NEVER execute git commit
-6. ❌ NEVER modify the repository
+1. ✅ All message generation (subject, body, footer, formatting)
+2. ✅ Commit style matching and best practices application
+3. ✅ Atomicity analysis and recommendations
+4. ✅ Return structured message output
 
-### CRITICAL: Two-Phase Workflow
-**Phase 1 - Generation:** Agent generates → returns message
-**Phase 2 - Approval:** User approves → Command executes
+**The agent has ZERO orchestration responsibilities. You have ZERO message formatting knowledge.**
 
-**NEVER allow the agent to execute commits directly.**
+### Two-Phase Workflow
+**Phase 1 - Generation:** Agent analyzes and generates → returns message
+**Phase 2 - Approval:** User approves → Command executes `git commit`
 
 ## Examples
 

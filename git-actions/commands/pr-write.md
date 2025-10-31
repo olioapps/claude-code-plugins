@@ -1,5 +1,5 @@
 ---
-allowed-tools: Task, Bash(git:*), Bash(gh pr create:*)
+allowed-tools: Task, Bash(git status:*), Bash(git branch:*), Bash(git log:*), Bash(git diff:*), Bash(git show-ref:*), Bash(git rev-parse:*), Bash(git rev-list:*), Bash(git diff-index:*), Bash(git symbolic-ref:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh auth status:*), Bash(command -v:*)
 argument-hint: [base-branch] [additional context]
 description: Create draft PR with AI-generated description (default: main)
 ---
@@ -88,7 +88,7 @@ git rev-parse --abbrev-ref --symbolic-full-name @{u} &>/dev/null && \
 
 ### Step 3: Generate PR Description (Agent)
 
-**YOU invoke the pr-creator agent to GENERATE ONLY:**
+**YOU invoke the pr-creator agent:**
 
 ```
 Use pr-creator agent.
@@ -102,18 +102,14 @@ Context:
 ADDITIONAL CONTEXT (HIGHEST PRIORITY - OVERRIDES ALL DEFAULTS):
 [insert additional context here]
 
-YOU MUST follow the additional context instructions above, even if they
-conflict with standard PR formatting guidelines. User/system requirements
-take precedence over default best practices.
+The pr-creator agent will:
+- Gather all necessary git context
+- Check for repository PR template
+- Analyze changes and generate comprehensive PR description
+- Return title + body ready for presentation
 
-Agent tasks:
-1. analyze commits: git log origin/$base..HEAD
-2. analyze diff: git diff origin/$base...HEAD
-3. apply PR formatting best practices (embedded in agent)
-4. apply any additional context instructions (these override defaults)
-5. generate: title, summary, changes, testing, deployment, links
-
-Return: title + body (DO NOT execute gh pr create - just return the content)
+YOU (command handler) do NOT need to know how the agent formats PRs.
+The agent owns all content generation logic.
 ```
 
 ### Step 4: Present for User Approval
@@ -185,8 +181,8 @@ echo "  - Add reviewers: gh pr edit --add-reviewer user"
 ### Command Handler (YOU) Responsibilities:
 1. ✅ Run pre-flight checks
 2. ✅ Determine base branch
-3. ✅ Push branch to origin
-4. ✅ Invoke pr-creator agent with "GENERATE ONLY" instructions
+3. ✅ Push branch to origin (requires user approval)
+4. ✅ Invoke pr-creator agent with context
 5. ✅ Present description to user for approval
 6. ✅ Use AskUserQuestion for verification
 7. ✅ Execute `gh pr create` ONLY after user approves
@@ -194,18 +190,16 @@ echo "  - Add reviewers: gh pr edit --add-reviewer user"
 9. ✅ Report final PR URL
 
 ### PR-Creator Agent Responsibilities:
-1. ✅ Analyze commits and diffs
-2. ✅ Generate PR title and description following best practices
-3. ✅ Return ONLY the title and body content
-4. ❌ NEVER execute gh pr create
-5. ❌ NEVER execute gh commands
-6. ❌ NEVER create the PR directly
+1. ✅ All content generation (title, body, formatting)
+2. ✅ PR template checking and following
+3. ✅ Best practices application
+4. ✅ Return structured title + body output
 
-### CRITICAL: Two-Phase Workflow
-**Phase 1 - Generation:** Agent generates → returns title + body
-**Phase 2 - Approval:** User approves → Command executes
+**The agent has ZERO orchestration responsibilities. You have ZERO content formatting knowledge.**
 
-**NEVER allow the agent to create PRs directly.**
+### Two-Phase Workflow
+**Phase 1 - Generation:** Agent analyzes and generates → returns title + body
+**Phase 2 - Approval:** User approves → Command executes `gh pr create`
 
 ## Error Handling
 
