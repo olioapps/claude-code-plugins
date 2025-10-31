@@ -437,7 +437,7 @@ Expert agent for writing commit messages.
 - Reviews commit history for style consistency
 - References the `commit-best-practices` skill
 - Generates concise, information-dense messages
-- Creates commits using git CLI
+- Returns structured message output (subject, body, footer)
 
 **Model**: Opus (for high-quality message generation)
 
@@ -550,9 +550,10 @@ git-actions/
 ```
 
 **Design principles:**
-- **Commands**: User entry points (explicit invocation)
-- **Agents**: Specialized workers (invoked by commands)
+- **Commands**: User entry points and orchestration (workflow, user approval, execution)
+- **Agents**: Pure content generators (analyze changes, generate messages/descriptions)
 - **Skills**: Knowledge resources (referenced by agents)
+- **Separation**: Zero duplication - agents generate, commands execute
 
 ## Prompt Writing Conventions
 
