@@ -32,30 +32,23 @@ Status: !`git status --short`
 
 ## Pre-flight Checks
 
-Execute checks before proceeding:
+**YOU run these checks using simple commands (auto-approved):**
 
-```bash
-current=$(git branch --show-current)
-base=${1:-main}
+1. Get current branch: `git branch --show-current`
+2. Verify not on base branch (compare in code)
+3. Verify base branch exists: `git show-ref --verify --quiet refs/heads/$base`
+4. Check gh CLI installed: `command -v gh`
+5. Check gh authenticated: `gh auth status`
+6. Check uncommitted changes: `git diff-index --quiet HEAD --`
+7. Check existing PR: `gh pr view --json url -q .url`
 
-# 1. Verify not on base branch
-[ "$current" != "$base" ] || { echo "ERROR: On base branch. Create feature branch first."; exit 1; }
-
-# 2. Verify base exists (fallback main→master)
-git show-ref --verify --quiet refs/heads/$base || \
-  ([ "$base" = "main" ] && git show-ref --verify --quiet refs/heads/master && base="master") || \
-  { echo "ERROR: Base branch '$base' not found."; exit 1; }
-
-# 3. Check gh CLI
-command -v gh &>/dev/null || { echo "ERROR: Install gh CLI: https://cli.github.com/"; exit 1; }
-gh auth status &>/dev/null || { echo "ERROR: Run gh auth login"; exit 1; }
-
-# 4. Check uncommitted changes (warn only)
-git diff-index --quiet HEAD -- || echo "WARNING: Uncommitted changes won't be in PR"
-
-# 5. Check existing PR
-gh pr view &>/dev/null && { echo "PR exists. Use /pr:edit to update."; gh pr view --json url -q .url; exit 0; }
-```
+**Error handling:**
+- If on base branch → error, tell user to create feature branch
+- If base doesn't exist and base=main → try master: `git show-ref --verify --quiet refs/heads/master`
+- If gh missing → error with install URL: https://cli.github.com/
+- If gh not auth → error: "Run gh auth login"
+- If uncommitted changes → warn only
+- If PR exists → show URL, suggest /pr:edit
 
 ## Task
 
