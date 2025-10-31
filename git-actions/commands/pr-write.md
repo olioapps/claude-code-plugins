@@ -57,7 +57,13 @@ git diff-index --quiet HEAD -- || echo "WARNING: Uncommitted changes won't be in
 gh pr view &>/dev/null && { echo "PR exists. Use /pr:edit to update."; gh pr view --json url -q .url; exit 0; }
 ```
 
-## Workflow
+## Task
+
+**YOU (the command handler) orchestrate the entire PR creation workflow. The pr-creator agent ONLY generates descriptions, it does NOT execute gh pr create.**
+
+Follow the workflow below step-by-step.
+
+## Workflow - FOLLOW EXACTLY
 
 ### Step 1: Determine Base Branch
 
@@ -80,7 +86,9 @@ git rev-parse --abbrev-ref --symbolic-full-name @{u} &>/dev/null && \
   git push -u origin $(git branch --show-current)
 ```
 
-### Step 3: Invoke pr-creator Agent
+### Step 3: Generate PR Description (Agent)
+
+**YOU invoke the pr-creator agent to GENERATE ONLY:**
 
 ```
 Use pr-creator agent.
@@ -105,18 +113,63 @@ Agent tasks:
 4. apply any additional context instructions (these override defaults)
 5. generate: title, summary, changes, testing, deployment, links
 
-Return: title + body for gh pr create
+Return: title + body (DO NOT execute gh pr create - just return the content)
 ```
 
-### Step 4: Create PR (Draft Mode)
+### Step 4: Present for User Approval
 
+**YOU present the generated PR description to the user:**
+
+Display:
+```markdown
+## Proposed PR
+
+**Title:** [title from agent]
+
+**Description:**
+[body from agent - show first 50 lines with "..." if longer]
+
+**Target:** [current-branch] → [base-branch]
+**Commits:** [N commits]
+```
+
+**YOU use AskUserQuestion tool:**
+```
+Options:
+- "Approve and create PR" → Proceed with gh pr create
+- "Request changes" → Ask user for feedback, re-invoke agent
+- "Cancel" → Abort PR creation
+```
+
+### Step 5: Execute Based on User Decision
+
+**If "Approve and create PR":**
 ```bash
-# Parse agent response (title + body)
-# Always create as draft for review before publishing
+# YOU execute the PR creation using Bash tool
 gh pr create --base "$base" --title "$title" --body "$body" --draft
+
+# Get the PR URL
+pr_url=$(gh pr view --json url -q .url)
+
+# Inform user of success
 ```
 
-### Step 5: Confirm
+**If "Request changes":**
+```
+1. YOU ask user: "What changes would you like to the PR description?"
+2. YOU re-invoke pr-creator agent with:
+   - Same commit/diff analysis
+   - User's feedback included in additional context
+   - GENERATE ONLY (still no execution)
+3. Return to Step 4 (present new description for approval)
+```
+
+**If "Cancel":**
+```
+YOU inform user: "PR creation cancelled. Branch remains pushed to origin."
+```
+
+### Step 6: Confirm Success
 
 ```bash
 pr_url=$(gh pr view --json url -q .url)
@@ -126,6 +179,33 @@ echo "  - Review description: /pr:edit"
 echo "  - Mark ready: gh pr ready"
 echo "  - Add reviewers: gh pr edit --add-reviewer user"
 ```
+
+## Critical Rules - Separation of Responsibilities
+
+### Command Handler (YOU) Responsibilities:
+1. ✅ Run pre-flight checks
+2. ✅ Determine base branch
+3. ✅ Push branch to origin
+4. ✅ Invoke pr-creator agent with "GENERATE ONLY" instructions
+5. ✅ Present description to user for approval
+6. ✅ Use AskUserQuestion for verification
+7. ✅ Execute `gh pr create` ONLY after user approves
+8. ✅ Handle change requests by re-invoking agent
+9. ✅ Report final PR URL
+
+### PR-Creator Agent Responsibilities:
+1. ✅ Analyze commits and diffs
+2. ✅ Generate PR title and description following best practices
+3. ✅ Return ONLY the title and body content
+4. ❌ NEVER execute gh pr create
+5. ❌ NEVER execute gh commands
+6. ❌ NEVER create the PR directly
+
+### CRITICAL: Two-Phase Workflow
+**Phase 1 - Generation:** Agent generates → returns title + body
+**Phase 2 - Approval:** User approves → Command executes
+
+**NEVER allow the agent to create PRs directly.**
 
 ## Error Handling
 

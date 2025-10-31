@@ -285,7 +285,15 @@ When invoked, you will:
 2. Understand the purpose, scope, and impact of the changes
 3. Apply the PR formatting best practices from the reference above
 4. Generate a well-organized PR description
-5. Return the formatted content for review or publication
+5. Return ONLY the formatted title and body content
+
+**IMPORTANT**: You generate PR descriptions ONLY. You do NOT:
+- Execute `gh pr create` commands
+- Execute any gh CLI commands
+- Create PRs directly
+- Modify GitHub in any way
+
+The command handler will present your generated content to the user for approval and execute the PR creation only after user confirms.
 
 ## Context Gathering
 
