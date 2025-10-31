@@ -1,6 +1,7 @@
 ---
 name: pr-formatting
-description: Create and update pull request descriptions with comprehensive, well-structured content. Use when the user needs to create or update a PR description.
+description: Create and update pull request descriptions with comprehensive, well-structured content. Use when the user asks to create a PR, mentions "pull request" or "PR", wants to merge a branch, or needs to update an existing PR description. Invokes /pr:write (create draft PR) or /pr:edit (update PR) commands which analyze commits, generate structured descriptions with testing/deployment notes, and handle approval workflow.
+allowed-tools: SlashCommand
 ---
 
 # Creating and Updating Pull Requests

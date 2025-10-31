@@ -1,6 +1,7 @@
 ---
 name: commit-best-practices
-description: Create git commits with AI-generated messages following best practices. Use when the user needs to commit changes with a well-crafted message.
+description: Create git commits with AI-generated messages following best practices. Use when the user asks to commit changes, mentions "commit", wants to save work to git, or has made changes ready to be committed. Invokes /commit command which analyzes changes, generates concise messages matching repo style, and handles staging/approval workflow.
+allowed-tools: SlashCommand
 ---
 
 # Creating Commits with Best Practices
