@@ -555,9 +555,321 @@ git-actions/
 - **Skills**: Knowledge resources (referenced by agents)
 - **Separation**: Zero duplication - agents generate, commands execute
 
-## Prompt Writing Conventions
+## Prompt Writing Standards
 
-This plugin follows strict conventions for writing agent, command, and skill prompts to maximize clarity, reduce tokens, and improve AI comprehension.
+This plugin follows strict structural and stylistic conventions for writing prompts. The goal is **clarity through consistency** - every prompt type follows predictable patterns that maximize AI comprehension while minimizing tokens.
+
+### Design Philosophy
+
+**Scannability First**
+Prompts are structured for rapid comprehension. Headers, bullets, code blocks, and clear hierarchy allow both humans and AI to quickly locate relevant information. No walls of text.
+
+**Safety by Design**
+Commands include explicit validation, error handling, and user confirmation workflows. Never execute destructive operations without approval. Always provide clear error messages and recovery paths.
+
+**Examples Over Explanation**
+Show concrete examples with real commands and actual outputs rather than abstract descriptions. One good example beats three paragraphs of explanation.
+
+**Separation of Concerns**
+Commands orchestrate workflows and handle user interaction. Agents generate content and analyze data. Skills provide reference knowledge. Zero duplication across these boundaries.
+
+### Standard Structures
+
+All prompts in this plugin follow consistent structural patterns based on their type.
+
+#### Agent Structure
+
+Agents follow a **workflow-based** pattern optimized for clarity and actionability:
+
+```markdown
+---
+name: agent-name
+description: One-line description of capability and when to use
+model: sonnet|opus|haiku
+---
+
+## Priority System
+1. **HIGHEST:** User-provided additional context
+2. **HIGH:** Repository-specific patterns
+3. **MEDIUM:** Best practices guidelines below
+
+User context always wins.
+
+## Core Philosophy
+[2-4 bullet points stating what this agent does and principles it follows]
+
+## Your Workflow
+
+### Step 1: [Action Name]
+[Specific instructions, bash commands, validation checks]
+
+### Step 2: [Action Name]
+[More specific steps...]
+
+### Step 3: [Action Name]
+...
+
+### Step N: Validate
+- [ ] Checklist item 1
+- [ ] Checklist item 2
+
+## [Domain-Specific Sections]
+[Examples, formats, anti-patterns - whatever the agent needs]
+
+## Response Protocol
+When invoked:
+1. Acknowledge
+2. Gather [specific data]
+3. Analyze [specific aspects]
+4. Generate [specific output]
+5. Validate against checklist
+```
+
+**What Goes Where:**
+- **Priority System**: Establishes hierarchy for conflicting instructions (user > repo > defaults)
+- **Core Philosophy**: States the "why" and fundamental principles upfront
+- **Workflow Steps**: Numbered, actionable steps in execution order. Use bash code blocks for commands.
+- **Validate Step**: Always the final workflow step - checklist format for quality assurance
+- **Domain Sections**: Examples, templates, anti-patterns specific to the agent's purpose
+- **Response Protocol**: Clear contract for what the agent does when invoked
+
+**Key Principles:**
+- Workflow over reference manual (actionable steps, not descriptive paragraphs)
+- Validation checklists in final step (catches errors before output)
+- Examples in dedicated sections (not scattered throughout)
+- Concise philosophy statements (not verbose mission statements)
+
+#### Command Structure
+
+Commands follow a **dispatcher pattern** that validates inputs and orchestrates workflows:
+
+```markdown
+---
+allowed-tools: [specific tools this command needs]
+argument-hint: [usage pattern]
+description: Brief description of what command does
+---
+
+## Context
+Arguments: `/command [ARGS]`
+- **arg1** - description
+- **(empty)** - default behavior
+
+Current: !`status-command`
+
+## Workflow
+
+### 1. Pre-flight & Validation
+**Check requirements:**
+```bash
+git rev-parse --git-dir || echo "ERROR"
+```
+
+**Abort if:** [clear conditions]
+
+### 2. [Core Steps]
+[Numbered workflow steps similar to agents]
+
+### 3. Execute
+[Final execution with clear success/failure messaging]
+
+## Responsibilities
+**YOU (handler):** orchestrate, validate, get approvals, execute
+**Agent:** analyze, generate, return structured output
+
+## Error Handling
+[Categorized error scenarios with specific messages and recovery]
+
+## Examples
+[Realistic usage examples with comments]
+```
+
+**What Goes Where:**
+- **Context**: Arguments, current state check (using `!` for inline execution)
+- **Workflow**: Numbered steps with clear pre-flight validation
+- **Responsibilities**: Explicit separation between command handler and agents
+- **Error Handling**: Categorized by error type with specific messages
+- **Examples**: Organized by use case (standard, edge cases, workflows)
+
+**Key Principles:**
+- Safety first (validate before execute, always confirm destructive ops)
+- Clear error messages (specific, actionable, include recovery steps)
+- User approval required (use AskUserQuestion for confirmations)
+- Comprehensive examples (cover common workflows and edge cases)
+
+#### Skill Structure
+
+Skills are **reference documentation** with decision trees and examples:
+
+```markdown
+---
+name: skill-name
+description: What this skill covers
+---
+
+## Core Principles
+[Fundamental rules, typically 3-6 bullet points]
+
+## Standard Format
+[Templates, structures, or patterns to follow]
+
+## Examples
+
+### ✅ Good Examples
+[Concrete examples with explanations]
+
+### ❌ Bad Examples (and why)
+[Anti-patterns with clear reasoning]
+
+## Special Cases
+[Edge cases, exceptions, adaptive patterns]
+
+## Anti-Patterns to Avoid
+[Common mistakes as concise bullets]
+
+## Key Principles
+[Summary of 5-6 core principles to remember]
+```
+
+**What Goes Where:**
+- **Core Principles**: The "why" behind the guidance
+- **Standard Format**: Templates and structures to follow
+- **Examples**: Good vs. bad, organized by complexity or type
+- **Special Cases**: How to adapt for edge cases
+- **Key Principles**: Summary of most important takeaways
+
+**Key Principles:**
+- Examples over explanation (show, don't tell)
+- Good/bad comparisons (what to do and what to avoid side-by-side)
+- Scannable structure (headers, bullets, code blocks)
+- Decision trees for complex choices
+
+### Scannability Techniques
+
+**Use Visual Hierarchy:**
+```markdown
+✅ Headers for sections (##, ###)
+✅ Bullets for lists
+✅ Code blocks for commands
+✅ Tables for categorization
+✅ Blank lines between sections
+✅ Bold for emphasis
+
+❌ Long paragraphs
+❌ Nested lists >2 levels deep
+❌ Inline code for multi-line content
+```
+
+**Structured Data Formats:**
+```markdown
+# Use tables for error handling
+| Error | Action | Recovery |
+|-------|--------|----------|
+| Case 1 | Do X | Steps... |
+
+# Use checklists for validation
+- [ ] Item validated
+- [ ] Next item checked
+
+# Use code blocks for exact commands
+```bash
+git commit -m "message"
+```
+```
+
+**Front-Load Information:**
+```markdown
+✅ "Error: Not a git repo" (immediate clarity)
+❌ "An error occurred because the current directory is not a git repository" (buried lede)
+
+✅ "/command all    # Stage all and commit" (action + context)
+❌ "# This command will stage all files and then create a commit" (verbose)
+```
+
+### Safety Patterns
+
+**Always Confirm Destructive Operations:**
+```markdown
+# Use AskUserQuestion for:
+- git add -A (staging all files)
+- git push --force (rewriting history)
+- git commit (creating commits)
+- gh pr create (publishing PRs)
+- Deleting/modifying existing data
+
+# Pattern:
+Use AskUserQuestion: "Stage all changes with git add -A?"
+- If approved → execute
+- If rejected → abort with clear message
+```
+
+**Pre-flight Validation:**
+```bash
+# Always check preconditions before execution
+git rev-parse --git-dir || echo "NOT_A_REPO"
+git status --short
+git diff --cached --quiet && echo "NO_STAGED" || echo "HAS_STAGED"
+
+# Abort early with clear errors
+if NOT_A_REPO: "Error: Not in a git repository"
+if NO_CHANGES: "Nothing to commit (working tree clean)"
+```
+
+**Error Recovery:**
+```markdown
+# Every error needs:
+1. Clear description (what failed)
+2. Specific cause (why it failed)
+3. Recovery action (how to fix)
+
+Example:
+❌ "Commit failed"
+✅ "Commit failed: index.lock exists. Try: rm .git/index.lock"
+```
+
+**Hook Handling:**
+```markdown
+# Pre-commit hooks can:
+- Modify files (prettier, formatters)
+- Reject commits (linters, tests)
+- Fail unexpectedly
+
+# Always:
+1. Check for modifications after commit
+2. Offer retry/skip/cancel on failures
+3. Inform user of hook modifications
+```
+
+### Example Patterns
+
+**Standard Usage Examples:**
+```bash
+/command arg1              # Basic usage
+/command arg2 context      # With additional context
+```
+
+**Common Workflows:**
+```bash
+# Multi-step process showing realistic usage
+step1
+/command arg1              # Result: outcome
+step2
+/command arg2              # Result: outcome
+```
+
+**Edge Cases:**
+```bash
+# Unusual but valid scenarios
+/command                   # Auto-detect behavior
+/command with-long-arg     # Handling complex arguments
+```
+
+**Custom Instructions:**
+```bash
+# Show how user context overrides defaults
+/command arg use conventional commits format
+# Agent will use feat:/fix: even if repo doesn't normally
+```
 
 ### Information Dense Keywords (IDKs)
 
