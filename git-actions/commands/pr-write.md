@@ -1,83 +1,87 @@
 ---
-allowed-tools: Task, Bash(git status:*), Bash(git branch:*), Bash(git log:*), Bash(git diff:*), Bash(git show-ref:*), Bash(git rev-parse:*), Bash(git rev-list:*), Bash(git diff-index:*), Bash(git symbolic-ref:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh auth status:*), Bash(command -v:*)
+allowed-tools: Task, Bash(git:*), Bash(gh pr:*), Bash(gh auth:*), Bash(command -v:*), AskUserQuestion
 argument-hint: [base-branch] [additional context]
-description: Create draft PR with AI-generated description (default: main)
+description: Create draft PR with AI-generated description
 ---
 
 ## Context
 
-Create PR using `pr-creator` agent + `gh` CLI.
-
-Arguments: `/git-actions:pr-write $ARGUMENTS`
-- **base-branch** - target branch (e.g., "main", "develop", "development")
-- **(empty)** - default: main
-- **[additional context]** - optional text after base-branch for custom instructions
+Arguments: `/git-actions:pr-write [BASE_BRANCH] [CUSTOM_INSTRUCTIONS]`
+- **base-branch** - target branch (default: main)
+- **[additional context]** - custom instructions for agent (highest priority)
 
 **Examples:**
-- `/git-actions:pr-write` - Create PR to main with standard description
-- `/git-actions:pr-write develop` - Create PR to develop branch
-- `/git-actions:pr-write main focus on security changes` - Emphasize security in description
-- `/git-actions:pr-write brief format` - Use minimal PR description format
+- `/git-actions:pr-write` - Create PR targeting main
+- `/git-actions:pr-write develop` - Target develop branch
+- `/git-actions:pr-write main brief format` - Minimal description
+- `/git-actions:pr-write focus on security` - Emphasize security
 
 Current: !`git branch --show-current`
-Status: !`git status --short`
 
-## Additional Context Handling
+## Workflow
 
-**If additional context is provided after the base-branch argument:**
-1. Parse it as custom instructions from the user
-2. Pass it to the pr-creator agent with HIGHEST PRIORITY
-3. Agent must follow these instructions even if they conflict with defaults
-4. Example: User says "brief format" → agent uses minimal sections
+### 1. Pre-flight & Validation
 
-## Pre-flight Checks
+**Check prerequisites:**
+```bash
+git rev-parse --git-dir 2>/dev/null || echo "NOT_A_REPO"
+command -v gh &>/dev/null || echo "GH_NOT_FOUND"
+gh auth status &>/dev/null || echo "GH_NOT_AUTH"
+git branch --show-current
+git status --short
+```
 
-Run simple readonly checks (auto-approved):
+**Abort if:**
+- Not a git repo → "Error: Not in a git repository"
+- gh CLI not found → "Error: Install gh CLI: https://cli.github.com/"
+- gh not authenticated → "Error: Run 'gh auth login'"
+- Uncommitted changes → Warn only: "⚠️ Uncommitted changes. Use '/git-actions:commit-all' first."
 
-1. Get current branch: `git branch --show-current`
-2. Check if base branch exists: `git show-ref --verify refs/heads/$base`
-3. Check gh CLI installed: `command -v gh`
-4. Check gh auth: `gh auth status`
-5. Check for existing PR: `gh pr view`
-6. Check uncommitted changes: `git diff-index --quiet HEAD`
+**Determine base branch:**
+- Parse first argument as base (default: "main")
+- Verify base exists: `git show-ref --verify refs/heads/$base`
+- If base="main" and not found → Try "master" as fallback
+- If still not found → Error: "Base branch '$base' not found"
 
-Handle logic in code:
-- If current == base → error "On base branch"
-- If base not found and base == "main" → try master fallback
-- If gh missing → error "Install gh CLI"
-- If not authenticated → error "Run gh auth login"
-- If PR exists → show URL, suggest /git-actions:pr-edit
-- If uncommitted changes → warn only
+**Verify not on base branch:**
+- Current branch == base → Error: "Already on base branch. Create feature branch first."
 
-## Task
+**Check for existing PR:**
+```bash
+gh pr view &>/dev/null && echo "PR_EXISTS"
+```
+- If PR exists → Show URL, suggest '/git-actions:pr-edit', abort
 
-**YOU (the command handler) orchestrate the entire PR creation workflow. The pr-creator agent ONLY generates descriptions, it does NOT execute gh pr create.**
+### 2. Push Branch
 
-Follow the workflow below step-by-step.
+**Check if branch needs push:**
+```bash
+git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "NO_UPSTREAM"
+```
 
-## Workflow - FOLLOW EXACTLY
+**Use AskUserQuestion:** "Push branch to origin?"
+- If no upstream → `git push -u origin <current-branch>`
+- If upstream exists:
+  ```bash
+  commits_ahead=$(git rev-list --count @{u}..HEAD)
+  ```
+  - If ahead > 0 → `git push`
+  - If ahead == 0 → Skip push (already up-to-date)
+- If push fails → Show error, abort
 
-### Step 1: Determine Base Branch
+### 3. Gather Context
 
-Parse argument: base = $1 or default to "main"
+```bash
+git log origin/$base..HEAD --oneline
+git diff --stat origin/$base...HEAD
+git diff origin/$base...HEAD | head -n 500
+```
 
-Check base branch exists:
-- Run `git show-ref --verify refs/heads/$base`
-- If fails and base == "main", try `git show-ref --verify refs/heads/master`
-- If both fail, error "Base branch not found"
+**Summary:**
+- N commits in this branch
+- X files changed (+Y -Z lines)
 
-### Step 2: Push Branch
-
-Check if branch needs push:
-- Run `git rev-parse --abbrev-ref --symbolic-full-name @{u}` to check upstream
-- If no upstream, run `git push -u origin <current-branch>`
-- If upstream exists, run `git rev-list --count @{u}..HEAD` to check commits ahead
-- If ahead, run `git push`
-- If already up to date, skip push
-
-### Step 3: Generate PR Description (Agent)
-
-**YOU invoke the pr-creator agent:**
+### 4. Invoke Agent
 
 ```
 Use pr-creator agent.
@@ -85,133 +89,189 @@ Use pr-creator agent.
 Context:
 - branch: $(git branch --show-current)
 - base: $base
-- action: create PR
+- commits: [N commits]
+- files: [X files]
+- stats: [+Y -Z lines]
 
-[IF ADDITIONAL CONTEXT WAS PROVIDED:]
-ADDITIONAL CONTEXT (HIGHEST PRIORITY - OVERRIDES ALL DEFAULTS):
-[insert additional context here]
+[IF USER PROVIDED CUSTOM INSTRUCTIONS:]
+USER INSTRUCTIONS (HIGHEST PRIORITY):
+"""
+[custom instructions verbatim]
+"""
 
-The pr-creator agent will:
-- Gather all necessary git context
-- Check for repository PR template
-- Analyze changes and generate comprehensive PR description
-- Return title + body ready for presentation
-
-YOU (command handler) do NOT need to know how the agent formats PRs.
-The agent owns all content generation logic.
+Agent returns structured output:
+---TITLE---
+[title]
+---BODY---
+[body]
+---END---
 ```
 
-### Step 4: Present for User Approval
+**Parse response into TITLE, BODY. Validate:**
+- [ ] TITLE exists and non-empty
+- [ ] TITLE ≤70 characters (warn if >70, continue if ≤100)
+- [ ] BODY exists and non-empty
+- [ ] No markdown artifacts in TITLE
 
-**YOU present the generated PR description to the user:**
+If validation fails → Report parse error, retry (max 2 attempts)
 
-Display:
+### 5. Present & Approve
+
 ```markdown
 ## Proposed PR
 
-**Title:** [title from agent]
+**Title:** [title]
 
 **Description:**
-[body from agent - show first 50 lines with "..." if longer]
+[body - show first 50 lines, indicate if truncated]
 
-**Target:** [current-branch] → [base-branch]
+**Target:** [current-branch] → [base]
 **Commits:** [N commits]
+**Files:** [X files] (+Y -Z lines)
 ```
 
-**YOU use AskUserQuestion tool:**
-```
+**Use AskUserQuestion:** "How to proceed with this PR?"
+
 Options:
-- "Approve and create PR" → Proceed with gh pr create
-- "Request changes" → Ask user for feedback, re-invoke agent
-- "Cancel" → Abort PR creation
-```
+- **"Approve and create"** → Create draft PR (proceed to Step 6)
+- **"Edit manually"** → Prompt for edited title/body, re-present
+- **"Request changes"** → Ask for feedback, re-invoke agent, re-present
+- **"Cancel"** → Abort
 
-### Step 5: Execute Based on User Decision
+### 6. Execute
 
-**If "Approve and create PR":**
-```bash
-# YOU execute the PR creation using Bash tool
-gh pr create --base "$base" --title "$title" --body "$body" --draft
-
-# Get the PR URL
-pr_url=$(gh pr view --json url -q .url)
-
-# Inform user of success
-```
-
-**If "Request changes":**
-```
-1. YOU ask user: "What changes would you like to the PR description?"
-2. YOU re-invoke pr-creator agent with:
-   - Same commit/diff analysis
-   - User's feedback included in additional context
-   - GENERATE ONLY (still no execution)
-3. Return to Step 4 (present new description for approval)
-```
-
-**If "Cancel":**
-```
-YOU inform user: "PR creation cancelled. Branch remains pushed to origin."
-```
-
-### Step 6: Confirm Success
+**On approval:**
 
 ```bash
+# Create draft PR using HEREDOC for body
+gh pr create --base "$base" --title "$title" --body "$(cat <<'EOF'
+$body
+EOF
+)" --draft
+
+# Get PR URL
 pr_url=$(gh pr view --json url -q .url)
-echo "✅ Draft PR created: $pr_url"
-echo "Next steps:"
-echo "  - Review description: /git-actions:pr-edit"
-echo "  - Mark ready: gh pr ready"
-echo "  - Add reviewers: gh pr edit --add-reviewer user"
+pr_number=$(gh pr view --json number -q .number)
 ```
 
-## Critical Rules - Separation of Responsibilities
+**Check result:**
 
-### Command Handler (YOU) Responsibilities:
-1. ✅ Run pre-flight checks
-2. ✅ Determine base branch
-3. ✅ Push branch to origin (requires user approval)
-4. ✅ Invoke pr-creator agent with context
-5. ✅ Present description to user for approval
-6. ✅ Use AskUserQuestion for verification
-7. ✅ Execute `gh pr create` ONLY after user approves
-8. ✅ Handle change requests by re-invoking agent
-9. ✅ Report final PR URL
+**If PR creation succeeds:**
+```
+✅ Draft PR created: #$pr_number
+🔗 $pr_url
 
-### PR-Creator Agent Responsibilities:
-1. ✅ All content generation (title, body, formatting)
-2. ✅ PR template checking and following
-3. ✅ Best practices application
-4. ✅ Return structured title + body output
+Next steps:
+  - Review description: /git-actions:pr-edit
+  - Mark ready: gh pr ready
+  - Add reviewers: gh pr edit --add-reviewer username
+  - Add labels: gh pr edit --add-label bug,feature
+```
 
-**The agent has ZERO orchestration responsibilities. You have ZERO content formatting knowledge.**
+**If PR creation fails:**
+- Show gh error verbatim
+- Common issues:
+  - "already exists" → PR may exist, check: `gh pr list`
+  - "no commits" → Branch up-to-date with base
+  - "permission denied" → Check repo access
+  - "rate limit" → Wait for GitHub API rate limit reset
 
-### Two-Phase Workflow
-**Phase 1 - Generation:** Agent analyzes and generates → returns title + body
-**Phase 2 - Approval:** User approves → Command executes `gh pr create`
+**On cancel:**
+❌ "Cancelled. Branch remains pushed to origin."
+
+## Responsibilities
+
+**YOU (handler):** check prerequisites, determine base branch, push branch (with approval), gather context, invoke agent, present description, get approval, execute gh pr create, handle errors
+
+**Agent:** analyze commits/diff, check for PR template, generate description, return structured title + body
+
+**Agent does NOT orchestrate or execute. You do NOT format PR descriptions.**
 
 ## Error Handling
 
-| Error | Action |
-|-------|--------|
-| Uncommitted changes | Warn, continue or /git-actions:commit all |
-| No upstream | Push with -u flag |
-| PR exists | Show URL, suggest /git-actions:pr-edit |
-| gh missing | Install: https://cli.github.com/ |
-| gh not auth | Run: gh auth login |
+### Pre-flight Errors
+- **Not a git repo** → "Error: Not in a git repository"
+- **gh not installed** → "Install: https://cli.github.com/"
+- **gh not authenticated** → "Run: gh auth login"
+- **On base branch** → "Create feature branch first: git checkout -b feature/name"
+- **Base branch not found** → "Branch '$base' not found. Check branch name."
+- **PR already exists** → Show URL, suggest '/git-actions:pr-edit $pr_number'
+
+### Push Errors
+- **No upstream, push fails** → Show error, suggest checking remote/permissions
+- **Rejected (non-fast-forward)** → "Pull changes first: git pull origin <branch>"
+- **Permission denied** → "Check repository access/permissions"
+
+### Agent Errors
+- **Agent fails** → Report error, offer retry (max 2 attempts)
+- **Invalid format** → Parse error, retry with clearer format
+- **Very large PR** → Agent may warn: "Consider splitting into smaller PRs"
+
+### PR Creation Errors
+- **gh pr create fails** → Show error verbatim
+- **Already exists** → Check existing PRs: `gh pr list`
+- **No commits** → "Branch up-to-date with $base. Make changes first."
+- **Rate limit** → "GitHub API rate limit exceeded. Try again later."
+- **Permission denied** → "Check repository write access"
+
+### Safety Guardrails
+- **Always** confirm before pushing branch
+- **Always** get approval before creating PR
+- **Always** create as draft (never publish immediately)
+- **Never** push --force without user confirmation
+- **Always** show PR content before creating
 
 ## Examples
 
+### Standard Usage
+
 ```bash
-/git-actions:pr-write              # Default: target main (or master)
+/git-actions:pr-write              # Target main (or master fallback)
 /git-actions:pr-write develop      # Target develop branch
 /git-actions:pr-write development  # Target development branch
 ```
 
-## Advanced (post-create)
+### With Custom Instructions
 
 ```bash
-# Mark PR ready for review (removes draft status)
+/git-actions:pr-write main brief format
+# Agent uses minimal sections, omits detailed breakdown
+
+/git-actions:pr-write develop focus on security changes
+# Agent emphasizes security implications heavily
+
+/git-actions:pr-write main include performance metrics
+# Agent adds detailed performance section
+
+/git-actions:pr-write skip testing section
+# Agent omits testing details
+```
+
+### Common Workflows
+
+```bash
+# Standard workflow
+git checkout -b feature/oauth-login
+# Make changes...
+/git-actions:commit-all
+/git-actions:pr-write
+# Review, approve, PR created as draft
+
+# Target specific branch
+git checkout -b feature/dashboard
+# Make changes...
+/git-actions:pr-write develop      # Target develop, not main
+
+# After creating PR
+gh pr ready                        # Mark ready for review
+gh pr edit --add-reviewer user1    # Add reviewers
+gh pr edit --add-label feature     # Add labels
+```
+
+### Post-Creation Commands
+
+```bash
+# Mark PR ready for review
 gh pr ready
 
 # Add reviewers, labels, milestone
@@ -221,4 +281,7 @@ gh pr edit --milestone "v1.0"
 
 # Convert back to draft
 gh pr ready --undo
+
+# Update PR description
+/git-actions:pr-edit
 ```

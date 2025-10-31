@@ -1,200 +1,276 @@
 ---
-allowed-tools: Task, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(git rev-list:*)
+allowed-tools: Task, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(git show:*), AskUserQuestion
 argument-hint: [all|staged] [additional context]
-description: Create commits with AI-generated messages (/git-actions:commit all or /git-actions:commit staged)
+description: Create commits with AI-generated messages
 ---
 
 ## Context
 
-Create git commit using `commit-writer` agent.
-
-Arguments: `/git-actions:commit $ARGUMENTS`
-- **all** - stage all changes, create commit
+Arguments: `/git-actions:commit [MODE] [CUSTOM_INSTRUCTIONS]`
+- **all** - stage all changes then commit
 - **staged** - commit staged changes only
-- **(empty)** - default: staged if any exist, else all
-- **[additional context]** - optional text after the mode argument for custom instructions
+- **(empty)** - auto-detect: staged if any exist, else prompt for all mode
+- **[additional context]** - custom instructions for agent (highest priority)
 
-**Examples:**
-- `/git-actions:commit all` - Standard commit with all changes
-- `/git-actions:commit staged` - Commit staged changes only
-- `/git-actions:commit all use conventional commits format` - Override style
-- `/git-actions:commit staged keep it under 40 chars` - Length constraint
-- `/git-actions:commit all emphasize performance improvements` - Focus guidance
+Current: !`git status --short`
 
-Current status: !`git status --short`
+## Workflow
 
-## Additional Context Handling
+### 1. Pre-flight & Mode Selection
 
-**If additional context is provided after the mode argument:**
-1. Parse it as custom instructions from the user
-2. Pass it to the commit-writer agent with HIGHEST PRIORITY
-3. Agent must follow these instructions even if they conflict with defaults
-4. Example: User says "no body" → agent must not include body, even for complex changes
-
-## Task
-
-**YOU (the command handler) orchestrate the entire commit workflow. The commit-writer agent ONLY generates messages, it does NOT execute commits.**
-
-Determine mode based on argument:
-- `all` → Stage all files, then generate message
-- `staged` → Use already-staged files, generate message
-- `(empty)` → Auto-detect (check if files are staged, use appropriate mode)
-
-Then follow the workflow below step-by-step.
-
-## Workflow - FOLLOW EXACTLY
-
-### Step 1: Stage Files (if mode is "all")
-
-**If /git-actions:commit all:**
+**Check repo state:**
 ```bash
-git add -A
+git rev-parse --git-dir 2>/dev/null || echo "NOT_A_REPO"
+git status --short
+git diff --cached --quiet && echo "NO_STAGED" || echo "HAS_STAGED"
+git diff --quiet && echo "NO_UNSTAGED" || echo "HAS_UNSTAGED"
 ```
 
-**If /git-actions:commit staged:**
-Skip staging - use what's already staged
+**Abort if:**
+- Not a git repo → "Error: Not in a git repository"
+- Merge/rebase in progress → "Cannot commit: merge/rebase in progress. Complete it first."
+- No changes at all → "Nothing to commit (working tree clean)"
 
-**If /git-actions:commit (no args):**
-Check if files are staged, then decide
+**Determine mode from first argument, extract any additional context from remaining args.**
 
-### Step 2: Gather File Information
+**Execute mode:**
 
-**YOU gather this information using Bash tool:**
+- **`all` mode:** Use AskUserQuestion to confirm "Stage all changes with `git add -A`?"
+  - If approved → Execute `git add -A`
+  - Show summary: "Staged X files (+Y -Z lines)"
+  - If staging fails → Show git error, abort
+
+- **`staged` mode:** Verify staged files exist with `git diff --cached --quiet`
+  - If none → Error: "No staged changes. Use '/git-actions:commit all' or stage files manually"
+  - If exist → Proceed to Step 2
+
+- **`(empty)` auto-detect:**
+  - If staged changes exist → Use staged mode
+  - Else if unstaged changes exist → Use AskUserQuestion: "No staged changes. Stage all and commit?"
+    - If yes → Switch to all mode (with confirmation)
+    - If no → "Cancelled. Stage files manually or use '/git-actions:commit all'"
+  - Else → Error: "Nothing to commit"
+
+### 2. Gather Context
 
 ```bash
-# Get list of staged files
-git diff --cached --name-only
-
-# Get change stats
-git diff --cached --stat
+git diff --cached --name-status
+git diff --cached --stat  
+git diff --cached --unified=3 | head -n 300  # truncate if needed
 ```
 
-**Prepare file summary:**
-- If ≤10 files: List all individually
-- If >10 files: Summarize by category (e.g., "12 files in git-actions/", "3 config files")
+**File summary:**
+- ≤10 files: list all with status
+- \>10 files: group by directory/type/change-type
 
-### Step 3: Generate Commit Message (Agent)
-
-**YOU invoke the commit-writer agent:**
+### 3. Invoke Agent
 
 ```
 Use commit-writer agent.
 
 Context:
-- mode: [staged-only or stage-all based on Step 1]
-- action: generate commit message
+- mode: [staged/all]
+- files: [summary]
+- stats: [+X -Y lines]
+- diff: [truncated preview]
 
-[IF ADDITIONAL CONTEXT WAS PROVIDED:]
-ADDITIONAL CONTEXT (HIGHEST PRIORITY - OVERRIDES ALL DEFAULTS):
-[insert additional context here]
+[IF USER PROVIDED CUSTOM INSTRUCTIONS:]
+USER INSTRUCTIONS (HIGHEST PRIORITY):
+"""
+[custom instructions verbatim]
+"""
 
-The commit-writer agent will:
-- Gather all necessary git context
-- Analyze changes for atomicity and purpose
-- Match repository commit style conventions
-- Generate concise, information-dense commit message
-- Return structured message (subject, body, footer)
+Agent returns structured output:
+---SUBJECT---
+[subject]
+---BODY---
+[body or empty]
+---FOOTER---
+[footer or empty]
+---END---
 
-YOU (command handler) do NOT need to know how the agent formats commits.
-The agent owns all message generation logic.
+Agent responsibilities: analyze changes, match repo style, generate message, warn if non-atomic
 ```
 
-### Step 4: Present for User Approval
+**Parse response into SUBJECT, BODY, FOOTER. Validate:**
+- [ ] SUBJECT exists and is non-empty
+- [ ] SUBJECT ≤72 characters (warn if >72, continue if ≤100, error if >100)
+- [ ] No markdown artifacts in output (triple backticks, horizontal rules, headers)
+- [ ] Body separated from subject by blank line (if body exists)
 
-**YOU present the message to the user:**
+If validation fails → Report parse error, ask agent to retry with clearer format (max 2 retries)
 
-Display:
+### 4. Present & Approve
+
 ```markdown
 ## Proposed Commit
 
-**Subject:** [subject line from agent]
+**Subject:** [subject]
+[**Body:** [body] if exists]
+[**Footer:** [footer] if exists]
 
-**Body:**
-[body if any]
-
-**Files to be committed:**
-[list or summary from Step 2]
-
-**Change stats:** +X -Y lines
+**Files:** [summary] ([stats])
+[⚠️ **Non-atomic warning** if flagged by agent]
 ```
 
-**YOU use AskUserQuestion tool:**
-```
+**Use AskUserQuestion:** "How to proceed with this commit?"
+
 Options:
-- "Approve and commit" → Proceed with commit
-- "Request changes" → Ask user for feedback, re-invoke agent
-- "Cancel" → Abort
-```
+- **"Approve"** → Execute commit with this message (proceed to Step 5)
+- **"Edit manually"** → Prompt user to provide edited message text, re-present for final confirmation
+- **"Request changes"** → Ask: "What changes would you like?" → Re-invoke agent with user feedback → Re-present
+- **"Cancel"** → Abort without committing
 
-### Step 5: Execute Based on User Decision
+### 5. Execute
 
-**If "Approve and commit":**
+**On approval:**
+
 ```bash
-# YOU execute the commit using Bash tool
+# Construct message using HEREDOC for proper formatting
 git commit -m "$(cat <<'EOF'
-[subject line from agent]
+[SUBJECT]
 
-[body from agent if any]
+[BODY if exists]
 
-[footer from agent if any]
+[FOOTER if exists]
 EOF
 )"
-
-# Get the SHA
-git log -1 --format=%H
-
-# Inform user of success with SHA
 ```
 
-**If "Request changes":**
-```
-1. YOU ask user: "What changes would you like to the commit message?"
-2. YOU re-invoke commit-writer agent with:
-   - Same change analysis
-   - User's feedback included
-   - GENERATE MESSAGE ONLY (still no execution)
-3. Return to Step 4 (present new message for approval)
-```
+**Check commit result and handle hooks:**
 
-**If "Cancel":**
-```
-YOU inform user: "Commit cancelled. No changes were committed."
-```
-
-## Critical Rules - Separation of Responsibilities
-
-### Command Handler (YOU) Responsibilities:
-1. ✅ Stage files (if /commit:all) - requires user approval
-2. ✅ Gather file information and stats
-3. ✅ Invoke commit-writer agent with context
-4. ✅ Present message to user for approval
-5. ✅ Use AskUserQuestion for verification
-6. ✅ Execute `git commit` ONLY after user approves
-7. ✅ Handle change requests by re-invoking agent
-8. ✅ Report final commit SHA
-
-### Commit-Writer Agent Responsibilities:
-1. ✅ All message generation (subject, body, footer, formatting)
-2. ✅ Commit style matching and best practices application
-3. ✅ Atomicity analysis and recommendations
-4. ✅ Return structured message output
-
-**The agent has ZERO orchestration responsibilities. You have ZERO message formatting knowledge.**
-
-### Two-Phase Workflow
-**Phase 1 - Generation:** Agent analyzes and generates → returns message
-**Phase 2 - Approval:** User approves → Command executes `git commit`
-
-## Examples
-
+**If commit succeeds:**
 ```bash
-/git-actions:commit all      # Stage all + commit
-/git-actions:commit staged   # Commit staged only
-/git-actions:commit          # Auto-detect
+# Check if pre-commit hook modified files
+git status --short
+git log -1 --format="%H %s"
 ```
+- If hook modified files → Inform user: "✅ Commit created: [SHA] [subject]\n⚠️ Note: Pre-commit hook modified files (changes included in commit)"
+- If no modifications → "✅ Commit created: [SHA] [subject]"
+
+**If pre-commit hook fails:**
+- Show hook output verbatim
+- Use AskUserQuestion: "Pre-commit hook failed. How to proceed?"
+  - "Fix and retry" → Abort, let user fix, they can re-run command
+  - "Skip hooks (--no-verify)" → Ask confirmation, then commit with --no-verify
+  - "Cancel" → Abort
+
+**If commit fails (other reasons):**
+- Show git error verbatim
+- Suggest fixes based on error pattern:
+  - "index.lock" → "Try: rm .git/index.lock"
+  - "nothing to commit" → "Changes may have been already committed"
+  - Other → Show error, suggest checking git status
+
+**On cancel:**
+❌ "Cancelled. Files remain staged." (if mode was 'all', files are still staged)
+
+## Responsibilities
+
+**YOU (handler):** check repo, parse args, stage files (with approval), gather context, invoke agent, present message, get user approval, execute commit, handle errors
+
+**Agent:** analyze changes, generate message matching repo style, return structured output
+
+**Agent does NOT orchestrate or execute. You do NOT format messages.**
 
 ## Error Handling
 
-**Agent fails:** report error, suggest fixes (resolve conflicts, check config), no retry
+### Pre-flight Errors
+- **Not a git repo** → "Error: Not in a git repository"
+- **No changes to commit** → "Nothing to commit (working tree clean)"
+- **Merge/rebase in progress** → "Cannot commit: merge/rebase in progress. Complete it first."
+- **Detached HEAD** → Warn user but allow commit with confirmation
 
-**No changes:** inform user, skip agent invocation
+### Staging Errors (all mode)
+- **`git add -A` fails** → Show git error, suggest checking .gitignore or file permissions
+- **Index lock exists** → "Git index is locked. Try: rm .git/index.lock"
+- **Unreadable files** → Show which files, suggest fixing permissions
+
+### Agent Errors
+- **Agent fails to respond** → Report error, offer retry (max 2 attempts)
+- **Agent returns invalid format** → Parse error, request retry with clearer format instructions
+- **Agent cannot parse diff** → For very large diffs (>1000 files), suggest splitting commits
+
+### Commit Execution Errors
+- **Commit command fails** → Show git error verbatim
+- **Pre-commit hook fails** → Show hook output, offer fix/skip/cancel options
+- **Pre-commit hook modifies files** → Include in commit, inform user
+- **Commit-msg hook rejects** → Show rejection reason, ask how to proceed
+- **GPG signing fails** → Show GPG error, suggest checking signing config
+
+### Safety Guardrails
+- **Always** confirm before `git add -A`
+- **Always** get user approval before executing commit
+- **Never** auto-commit without explicit approval
+- **Never** skip hooks without user confirmation
+- **Always** show what will be committed before committing
+
+## Examples
+
+### Standard Usage
+
+```bash
+/git-actions:commit all              # Stage all changes, generate message, commit
+/git-actions:commit staged           # Commit only staged files
+/git-actions:commit                  # Auto-detect: staged if any, else prompt for all
+```
+
+### With Custom Instructions (Override Defaults)
+
+Custom instructions have **highest priority** and override all agent defaults:
+
+```bash
+/git-actions:commit all use conventional commits format
+# Agent will use feat:/fix:/etc. format even if repo doesn't normally
+
+/git-actions:commit staged keep subject under 40 chars, no body
+# Forces short subject, omits body even for complex changes
+
+/git-actions:commit all emphasize security fixes in message
+# Agent will highlight security aspects in commit message
+
+/git-actions:commit staged include performance metrics in body
+# Agent will add performance details to commit body
+
+/git-actions:commit all be concise, one-line only
+# Forces single-line commit (no body/footer)
+```
+
+### Common Workflows
+
+```bash
+# Partial staging workflow (commit specific files only)
+git add src/auth/*.ts                # Stage specific files manually
+/git-actions:commit staged           # Commit just those files
+# Result: atomic commit for auth changes only
+
+# Quick fixes
+/git-actions:commit all quick typo fix
+# Custom context helps agent write appropriate message
+
+# Working with pre-commit hooks
+/git-actions:commit all              # If hook fails, you'll be prompted
+# Options: fix code and retry, skip hooks, or cancel
+
+# Multiple small commits from staging
+git add file1.ts
+/git-actions:commit staged           # First atomic commit
+git add file2.ts file3.ts
+/git-actions:commit staged           # Second atomic commit
+```
+
+### Edge Cases
+
+```bash
+# Empty mode with mixed changes
+/git-actions:commit                  # Detects: staged exist → commits staged only
+/git-actions:commit                  # Detects: no staged → prompts "Stage all?"
+
+# Very large changesets
+/git-actions:commit all              # Agent may warn: "Consider splitting commits"
+# You can still proceed or split manually
+
+# Custom formatting requirements
+/git-actions:commit staged use emoji, fun tone
+# Overrides professional tone, adds emoji to message
+```
