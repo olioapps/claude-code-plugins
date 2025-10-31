@@ -8,16 +8,16 @@ description: Update PR description (existing or draft preview)
 
 Update PR description using `pr-creator` agent.
 
-Arguments: `/pr:edit:$ARGUMENTS`
+Arguments: `/git-actions:pr-edit $ARGUMENTS`
 - **pr-number/url** - update specific PR
 - **(empty)** - update current branch PR or create draft
 - **[additional context]** - optional text after pr-number for custom instructions
 
 **Examples:**
-- `/pr:edit` - Update current branch PR
-- `/pr:edit 123` - Update PR #123
-- `/pr:edit 123 add performance metrics` - Update with focus on performance
-- `/pr:edit brief format` - Update current PR with minimal description
+- `/git-actions:pr-edit` - Update current branch PR
+- `/git-actions:pr-edit 123` - Update PR #123
+- `/git-actions:pr-edit 123 add performance metrics` - Update with focus on performance
+- `/git-actions:pr-edit brief format` - Update current PR with minimal description
 
 Current: !`git branch --show-current`
 
@@ -149,7 +149,7 @@ echo "$draft_body"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "Options:"
-echo "1. Create PR: /pr:write"
+echo "1. Create PR: /git-actions:pr-write"
 echo "2. Save to file"
 echo "3. Cancel"
 ```
@@ -190,7 +190,7 @@ gh pr edit "$pr_number" --body "$current\n\n## New Section\nContent"
 ## Examples
 
 ```bash
-/pr:edit          # Auto: update PR or create draft
-/pr:edit 123      # Update PR #123
-/pr:edit <url>    # Update PR by URL
+/git-actions:pr-edit          # Auto: update PR or create draft
+/git-actions:pr-edit 123      # Update PR #123
+/git-actions:pr-edit <url>    # Update PR by URL
 ```

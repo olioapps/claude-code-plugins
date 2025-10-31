@@ -8,16 +8,16 @@ description: Create draft PR with AI-generated description (default: main)
 
 Create PR using `pr-creator` agent + `gh` CLI.
 
-Arguments: `/pr:write:$ARGUMENTS`
+Arguments: `/git-actions:pr-write $ARGUMENTS`
 - **base-branch** - target branch (e.g., "main", "develop", "development")
 - **(empty)** - default: main
 - **[additional context]** - optional text after base-branch for custom instructions
 
 **Examples:**
-- `/pr:write` - Create PR to main with standard description
-- `/pr:write develop` - Create PR to develop branch
-- `/pr:write main focus on security changes` - Emphasize security in description
-- `/pr:write brief format` - Use minimal PR description format
+- `/git-actions:pr-write` - Create PR to main with standard description
+- `/git-actions:pr-write develop` - Create PR to develop branch
+- `/git-actions:pr-write main focus on security changes` - Emphasize security in description
+- `/git-actions:pr-write brief format` - Use minimal PR description format
 
 Current: !`git branch --show-current`
 Status: !`git status --short`
@@ -46,7 +46,7 @@ Handle logic in code:
 - If base not found and base == "main" → try master fallback
 - If gh missing → error "Install gh CLI"
 - If not authenticated → error "Run gh auth login"
-- If PR exists → show URL, suggest /pr:edit
+- If PR exists → show URL, suggest /git-actions:pr-edit
 - If uncommitted changes → warn only
 
 ## Task
@@ -160,7 +160,7 @@ YOU inform user: "PR creation cancelled. Branch remains pushed to origin."
 pr_url=$(gh pr view --json url -q .url)
 echo "✅ Draft PR created: $pr_url"
 echo "Next steps:"
-echo "  - Review description: /pr:edit"
+echo "  - Review description: /git-actions:pr-edit"
 echo "  - Mark ready: gh pr ready"
 echo "  - Add reviewers: gh pr edit --add-reviewer user"
 ```
@@ -194,18 +194,18 @@ echo "  - Add reviewers: gh pr edit --add-reviewer user"
 
 | Error | Action |
 |-------|--------|
-| Uncommitted changes | Warn, continue or /commit:all |
+| Uncommitted changes | Warn, continue or /git-actions:commit all |
 | No upstream | Push with -u flag |
-| PR exists | Show URL, suggest /pr:edit |
+| PR exists | Show URL, suggest /git-actions:pr-edit |
 | gh missing | Install: https://cli.github.com/ |
 | gh not auth | Run: gh auth login |
 
 ## Examples
 
 ```bash
-/pr:write              # Default: target main (or master)
-/pr:write develop      # Target develop branch
-/pr:write development  # Target development branch
+/git-actions:pr-write              # Default: target main (or master)
+/git-actions:pr-write develop      # Target develop branch
+/git-actions:pr-write development  # Target development branch
 ```
 
 ## Advanced (post-create)

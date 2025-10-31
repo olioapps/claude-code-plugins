@@ -1,25 +1,25 @@
 ---
 allowed-tools: Task, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(git rev-list:*)
 argument-hint: [all|staged] [additional context]
-description: Create commits with AI-generated messages (/commit:all or /commit:staged)
+description: Create commits with AI-generated messages (/git-actions:commit all or /git-actions:commit staged)
 ---
 
 ## Context
 
 Create git commit using `commit-writer` agent.
 
-Arguments: `/commit:$ARGUMENTS`
+Arguments: `/git-actions:commit $ARGUMENTS`
 - **all** - stage all changes, create commit
 - **staged** - commit staged changes only
 - **(empty)** - default: staged if any exist, else all
 - **[additional context]** - optional text after the mode argument for custom instructions
 
 **Examples:**
-- `/commit:all` - Standard commit with all changes
-- `/commit:staged` - Commit staged changes only
-- `/commit:all use conventional commits format` - Override style
-- `/commit:staged keep it under 40 chars` - Length constraint
-- `/commit:all emphasize performance improvements` - Focus guidance
+- `/git-actions:commit all` - Standard commit with all changes
+- `/git-actions:commit staged` - Commit staged changes only
+- `/git-actions:commit all use conventional commits format` - Override style
+- `/git-actions:commit staged keep it under 40 chars` - Length constraint
+- `/git-actions:commit all emphasize performance improvements` - Focus guidance
 
 Current status: !`git status --short`
 
@@ -46,15 +46,15 @@ Then follow the workflow below step-by-step.
 
 ### Step 1: Stage Files (if mode is "all")
 
-**If /commit:all:**
+**If /git-actions:commit all:**
 ```bash
 git add -A
 ```
 
-**If /commit:staged:**
+**If /git-actions:commit staged:**
 Skip staging - use what's already staged
 
-**If /commit (no args):**
+**If /git-actions:commit (no args):**
 Check if files are staged, then decide
 
 ### Step 2: Gather File Information
@@ -188,9 +188,9 @@ YOU inform user: "Commit cancelled. No changes were committed."
 ## Examples
 
 ```bash
-/commit:all      # Stage all + commit
-/commit:staged   # Commit staged only
-/commit          # Auto-detect
+/git-actions:commit all      # Stage all + commit
+/git-actions:commit staged   # Commit staged only
+/git-actions:commit          # Auto-detect
 ```
 
 ## Error Handling

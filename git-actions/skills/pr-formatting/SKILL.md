@@ -1,6 +1,6 @@
 ---
 name: pr-formatting
-description: Create and update pull request descriptions with comprehensive, well-structured content. Use when the user asks to create a PR, mentions "pull request" or "PR", wants to merge a branch, or needs to update an existing PR description. Invokes /pr:write (create draft PR) or /pr:edit (update PR) commands which analyze commits, generate structured descriptions with testing/deployment notes, and handle approval workflow.
+description: Create and update pull request descriptions with comprehensive, well-structured content. Use when the user asks to create a PR, mentions "pull request" or "PR", wants to merge a branch, or needs to update an existing PR description. Invokes /git-actions:pr-write (create draft PR) or /git-actions:pr-edit (update PR) commands which analyze commits, generate structured descriptions with testing/deployment notes, and handle approval workflow.
 allowed-tools: SlashCommand
 ---
 
@@ -12,9 +12,9 @@ When the user needs to create or update a pull request, use the appropriate slas
 
 ### Create New PR
 ```bash
-/pr:write              # Target main (or master if main doesn't exist)
-/pr:write develop      # Target specific branch
-/pr:write main focus on security changes  # With custom guidance
+/git-actions:pr-write              # Target main (or master if main doesn't exist)
+/git-actions:pr-write develop      # Target specific branch
+/git-actions:pr-write main focus on security changes  # With custom guidance
 ```
 
 **What it does:**
@@ -27,9 +27,9 @@ When the user needs to create or update a pull request, use the appropriate slas
 
 ### Update Existing PR
 ```bash
-/pr:edit           # Update current branch's PR
-/pr:edit 123       # Update specific PR by number
-/pr:edit 123 add performance metrics  # With custom guidance
+/git-actions:pr-edit           # Update current branch's PR
+/git-actions:pr-edit 123       # Update specific PR by number
+/git-actions:pr-edit 123 add performance metrics  # With custom guidance
 ```
 
 **What it does:**
@@ -54,28 +54,28 @@ Both commands invoke the `pr-creator` agent, which has PR best practices embedde
 You can pass additional context to customize the output:
 
 ```bash
-/pr:write brief format
-/pr:edit 123 emphasize breaking changes
-/pr:write main focus on performance improvements
+/git-actions:pr-write brief format
+/git-actions:pr-edit 123 emphasize breaking changes
+/git-actions:pr-write main focus on performance improvements
 ```
 
 ## Draft Mode
 
 All PRs are created in **draft mode** for review before publishing:
 - Review the generated description
-- Edit if needed: `/pr:edit`
+- Edit if needed: `/git-actions:pr-edit`
 - Mark ready when satisfied: `gh pr ready`
 
 ## Examples
 
 **User:** "I'm done with this feature, create a PR"
-**You:** Use `/pr:write` to create a draft PR with a comprehensive description.
+**You:** Use `/git-actions:pr-write` to create a draft PR with a comprehensive description.
 
 **User:** "Create a PR to develop branch"
-**You:** Use `/pr:write develop` to target the develop branch instead of main.
+**You:** Use `/git-actions:pr-write develop` to target the develop branch instead of main.
 
 **User:** "Update the PR description with the new changes"
-**You:** Use `/pr:edit` to regenerate the PR description based on current commits.
+**You:** Use `/git-actions:pr-edit` to regenerate the PR description based on current commits.
 
 **User:** "The PR needs more emphasis on the security fixes"
-**You:** Use `/pr:edit focus on security changes` to update the description with security emphasis.
+**You:** Use `/git-actions:pr-edit focus on security changes` to update the description with security emphasis.
