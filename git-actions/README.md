@@ -437,7 +437,7 @@ Expert agent for writing commit messages.
 - Reviews commit history for style consistency
 - References the `commit-best-practices` skill
 - Generates concise, information-dense messages
-- Creates commits using git CLI
+- Returns structured message output (subject, body, footer)
 
 **Model**: Opus (for high-quality message generation)
 
@@ -550,9 +550,10 @@ git-actions/
 ```
 
 **Design principles:**
-- **Commands**: User entry points (explicit invocation)
-- **Agents**: Specialized workers (invoked by commands)
+- **Commands**: User entry points and orchestration (workflow, user approval, execution)
+- **Agents**: Pure content generators (analyze changes, generate messages/descriptions)
 - **Skills**: Knowledge resources (referenced by agents)
+- **Separation**: Zero duplication - agents generate, commands execute
 
 ## Prompt Writing Conventions
 
@@ -1068,6 +1069,150 @@ git checkout -b feature/my-feature
 - **Act on high-confidence findings**: 90+ confidence issues are real problems
 - **Discuss medium-confidence items**: 70-89 confidence deserves discussion
 - **Consider observations**: 50-69 confidence might spark improvements
+
+## Future Enhancements
+
+These features are under consideration for future releases. Inspired by [wshobson/agents pr-enhance implementation](https://github.com/wshobson/agents/blob/main/plugins/git-pr-workflows/commands/pr-enhance.md).
+
+### PR Size Analysis & Splitting
+
+**Problem**: Large PRs (20+ files or 1000+ changes) are difficult to review effectively, leading to:
+- Overwhelmed reviewers who may miss issues
+- Longer review cycles and increased merge conflicts
+- Higher risk of bugs slipping through
+- Harder rollbacks if issues are discovered
+
+**Proposed Feature**:
+Add intelligent PR size detection and splitting suggestions to the `pr-creator` agent.
+
+**How It Would Work**:
+```bash
+$ /pr:write
+
+⚠️  Large PR Detected
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Files changed: 24 files
+Lines changed: +1,247 / -423
+
+💡 Suggestion: Split into multiple PRs
+
+Recommended Split Strategy:
+1. Database schema changes (3 files, foundation)
+2. Backend authentication service (8 files, depends on #1)
+3. API endpoints (5 files, depends on #2)
+4. Frontend UI components (8 files, depends on #3)
+
+Would you like to:
+  1. Continue with single large PR
+  2. Guide me through creating split PRs
+  3. Show Git workflow for splitting
+
+Your choice: _
+```
+
+**Split Workflow Example**:
+```bash
+# Create foundation PR
+git checkout -b feature/oauth-schema
+git cherry-pick abc123 def456 ghi789
+/commit:all
+/pr:write
+# PR #1 created
+
+# Create dependent PR
+git checkout -b feature/oauth-backend
+git cherry-pick jkl012 mno345
+/commit:all
+/pr:write
+# PR #2 created (depends on #1)
+```
+
+**Benefits**:
+- Faster, more thorough reviews
+- Reduced merge conflict risk
+- Easier rollbacks of specific changes
+- Better understanding of dependencies
+
+### Automated Code Quality Analysis (ReviewBot)
+
+**Problem**: Common code quality issues often slip through to review, wasting reviewer time on mechanical feedback.
+
+**Proposed Feature**:
+Add automated pre-review checks that detect common issues before the PR reaches human reviewers.
+
+**Checks to Implement**:
+1. **Console statements**: Detect `console.log`, `console.error` left in production code
+2. **Oversized functions**: Flag functions >50 lines (configurable)
+3. **Commented code**: Find blocks of commented-out code
+4. **TODO markers**: Surface incomplete work (`TODO`, `FIXME`, `HACK`)
+5. **Hardcoded values**: Detect magic numbers, hardcoded URLs, credentials
+6. **Missing error handling**: Identify `try` blocks without `catch`, unhandled promises
+
+**How It Would Work**:
+```bash
+$ /pr:review 123
+
+🔍 Running automated checks...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  Automated Findings:
+
+1. Console statement in production code
+   File: src/auth/oauth.ts:45
+   console.log('Token:', token)  // Remove or use logger
+
+2. Oversized function (67 lines)
+   File: src/services/user.service.ts:123
+   Function: processUserRegistration
+   Consider: Extract validation, email sending to helpers
+
+3. TODO marker
+   File: src/api/users.controller.ts:89
+   // TODO: Add rate limiting
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Proceeding with comprehensive AI review...
+```
+
+**Integration Points**:
+- Run automatically in `/pr:review` before deep analysis
+- Optional pre-commit hook integration
+- Configurable rules in `CLAUDE.md`:
+  ```markdown
+  # Code Quality Rules
+
+  ## Automated Checks
+  - Max function length: 75 lines
+  - Allow console in: test files, scripts/
+  - Ignore TODOs in: *.md files
+  ```
+
+**Benefits**:
+- Catch mechanical issues before human review
+- Free up reviewers to focus on logic and architecture
+- Consistent enforcement of code quality standards
+- Faster feedback loop for authors
+
+---
+
+### Contributing
+
+Interested in implementing these features? We welcome contributions! Each enhancement would involve:
+
+**For PR Splitting**:
+1. Add size analysis to `pr-creator` agent (agents/pr-creator.md:351-400)
+2. Implement split suggestion logic with dependency detection
+3. Add interactive workflow for guided splitting
+4. Update `pr-write` command to handle split flow
+
+**For ReviewBot**:
+1. Create new analyzer in agents/ directory
+2. Add pattern matching for each check type
+3. Integrate with `pr-reviewer` agent (agents/pr-reviewer.md)
+4. Add configuration options to skills/
+
+Both features should follow our [Prompt Writing Conventions](#prompt-writing-conventions) for consistency.
 
 ## FAQ
 

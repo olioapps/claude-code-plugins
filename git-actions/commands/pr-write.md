@@ -1,5 +1,5 @@
 ---
-allowed-tools: Task, Bash(git:*), Bash(gh pr create:*)
+allowed-tools: Task, Bash(git status:*), Bash(git branch:*), Bash(git log:*), Bash(git diff:*), Bash(git show-ref:*), Bash(git rev-parse:*), Bash(git rev-list:*), Bash(git diff-index:*), Bash(git symbolic-ref:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh auth status:*), Bash(command -v:*)
 argument-hint: [base-branch] [additional context]
 description: Create draft PR with AI-generated description (default: main)
 ---
@@ -32,30 +32,22 @@ Status: !`git status --short`
 
 ## Pre-flight Checks
 
-Execute checks before proceeding:
+Run simple readonly checks (auto-approved):
 
-```bash
-current=$(git branch --show-current)
-base=${1:-main}
+1. Get current branch: `git branch --show-current`
+2. Check if base branch exists: `git show-ref --verify refs/heads/$base`
+3. Check gh CLI installed: `command -v gh`
+4. Check gh auth: `gh auth status`
+5. Check for existing PR: `gh pr view`
+6. Check uncommitted changes: `git diff-index --quiet HEAD`
 
-# 1. Verify not on base branch
-[ "$current" != "$base" ] || { echo "ERROR: On base branch. Create feature branch first."; exit 1; }
-
-# 2. Verify base exists (fallback main→master)
-git show-ref --verify --quiet refs/heads/$base || \
-  ([ "$base" = "main" ] && git show-ref --verify --quiet refs/heads/master && base="master") || \
-  { echo "ERROR: Base branch '$base' not found."; exit 1; }
-
-# 3. Check gh CLI
-command -v gh &>/dev/null || { echo "ERROR: Install gh CLI: https://cli.github.com/"; exit 1; }
-gh auth status &>/dev/null || { echo "ERROR: Run gh auth login"; exit 1; }
-
-# 4. Check uncommitted changes (warn only)
-git diff-index --quiet HEAD -- || echo "WARNING: Uncommitted changes won't be in PR"
-
-# 5. Check existing PR
-gh pr view &>/dev/null && { echo "PR exists. Use /pr:edit to update."; gh pr view --json url -q .url; exit 0; }
-```
+Handle logic in code:
+- If current == base → error "On base branch"
+- If base not found and base == "main" → try master fallback
+- If gh missing → error "Install gh CLI"
+- If not authenticated → error "Run gh auth login"
+- If PR exists → show URL, suggest /pr:edit
+- If uncommitted changes → warn only
 
 ## Task
 
@@ -67,28 +59,25 @@ Follow the workflow below step-by-step.
 
 ### Step 1: Determine Base Branch
 
-```bash
-base="$1"
-# Default to main if not specified (fallback to master)
-if [ -z "$base" ]; then
-  git show-ref --verify --quiet refs/heads/main && base="main"
-  [ -z "$base" ] && git show-ref --verify --quiet refs/heads/master && base="master"
-  [ -z "$base" ] && { echo "ERROR: No default branch found. Specify explicitly."; exit 1; }
-fi
-```
+Parse argument: base = $1 or default to "main"
+
+Check base branch exists:
+- Run `git show-ref --verify refs/heads/$base`
+- If fails and base == "main", try `git show-ref --verify refs/heads/master`
+- If both fail, error "Base branch not found"
 
 ### Step 2: Push Branch
 
-```bash
-# Push if no upstream or local ahead
-git rev-parse --abbrev-ref --symbolic-full-name @{u} &>/dev/null && \
-  [ $(git rev-list --count @{u}..HEAD) -gt 0 ] && git push || \
-  git push -u origin $(git branch --show-current)
-```
+Check if branch needs push:
+- Run `git rev-parse --abbrev-ref --symbolic-full-name @{u}` to check upstream
+- If no upstream, run `git push -u origin <current-branch>`
+- If upstream exists, run `git rev-list --count @{u}..HEAD` to check commits ahead
+- If ahead, run `git push`
+- If already up to date, skip push
 
 ### Step 3: Generate PR Description (Agent)
 
-**YOU invoke the pr-creator agent to GENERATE ONLY:**
+**YOU invoke the pr-creator agent:**
 
 ```
 Use pr-creator agent.
@@ -102,18 +91,14 @@ Context:
 ADDITIONAL CONTEXT (HIGHEST PRIORITY - OVERRIDES ALL DEFAULTS):
 [insert additional context here]
 
-YOU MUST follow the additional context instructions above, even if they
-conflict with standard PR formatting guidelines. User/system requirements
-take precedence over default best practices.
+The pr-creator agent will:
+- Gather all necessary git context
+- Check for repository PR template
+- Analyze changes and generate comprehensive PR description
+- Return title + body ready for presentation
 
-Agent tasks:
-1. analyze commits: git log origin/$base..HEAD
-2. analyze diff: git diff origin/$base...HEAD
-3. apply PR formatting best practices (embedded in agent)
-4. apply any additional context instructions (these override defaults)
-5. generate: title, summary, changes, testing, deployment, links
-
-Return: title + body (DO NOT execute gh pr create - just return the content)
+YOU (command handler) do NOT need to know how the agent formats PRs.
+The agent owns all content generation logic.
 ```
 
 ### Step 4: Present for User Approval
@@ -185,8 +170,8 @@ echo "  - Add reviewers: gh pr edit --add-reviewer user"
 ### Command Handler (YOU) Responsibilities:
 1. ✅ Run pre-flight checks
 2. ✅ Determine base branch
-3. ✅ Push branch to origin
-4. ✅ Invoke pr-creator agent with "GENERATE ONLY" instructions
+3. ✅ Push branch to origin (requires user approval)
+4. ✅ Invoke pr-creator agent with context
 5. ✅ Present description to user for approval
 6. ✅ Use AskUserQuestion for verification
 7. ✅ Execute `gh pr create` ONLY after user approves
@@ -194,18 +179,16 @@ echo "  - Add reviewers: gh pr edit --add-reviewer user"
 9. ✅ Report final PR URL
 
 ### PR-Creator Agent Responsibilities:
-1. ✅ Analyze commits and diffs
-2. ✅ Generate PR title and description following best practices
-3. ✅ Return ONLY the title and body content
-4. ❌ NEVER execute gh pr create
-5. ❌ NEVER execute gh commands
-6. ❌ NEVER create the PR directly
+1. ✅ All content generation (title, body, formatting)
+2. ✅ PR template checking and following
+3. ✅ Best practices application
+4. ✅ Return structured title + body output
 
-### CRITICAL: Two-Phase Workflow
-**Phase 1 - Generation:** Agent generates → returns title + body
-**Phase 2 - Approval:** User approves → Command executes
+**The agent has ZERO orchestration responsibilities. You have ZERO content formatting knowledge.**
 
-**NEVER allow the agent to create PRs directly.**
+### Two-Phase Workflow
+**Phase 1 - Generation:** Agent analyzes and generates → returns title + body
+**Phase 2 - Approval:** User approves → Command executes `gh pr create`
 
 ## Error Handling
 
