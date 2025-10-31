@@ -46,13 +46,6 @@ You can pass additional context to override defaults:
 /commit:staged no body
 ```
 
-## When to Use
-
-- User has made changes and needs to commit
-- User asks for help writing a commit message
-- User wants a commit that follows best practices
-- User wants the commit to match repository style
-
 ## Examples
 
 **User:** "I've updated the authentication logic, can you commit this?"

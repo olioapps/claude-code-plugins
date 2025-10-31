@@ -66,18 +66,6 @@ All PRs are created in **draft mode** for review before publishing:
 - Edit if needed: `/pr:edit`
 - Mark ready when satisfied: `gh pr ready`
 
-## When to Use
-
-### Use `/pr:write` when:
-- User has committed changes and wants to create a PR
-- User is on a feature branch ready to merge
-- User asks to "create a pull request"
-
-### Use `/pr:edit` when:
-- User wants to update an existing PR description
-- User has made new commits and wants to refresh PR
-- User asks to "update the PR description"
-
 ## Examples
 
 **User:** "I'm done with this feature, create a PR"
