@@ -50,6 +50,39 @@ Status: !`git status --short`
 - If uncommitted changes → warn only
 - If PR exists → show URL, suggest /pr:edit
 
+### CRITICAL: Command Patterns for Auto-Approval
+
+**These commands match allowed-tools and AUTO-APPROVE:**
+```bash
+git branch --show-current
+git show-ref --verify --quiet refs/heads/main
+command -v gh
+gh auth status
+gh pr view --json url -q .url
+```
+
+**These compound forms DO NOT match and REQUIRE APPROVAL:**
+```bash
+❌ git show-ref --verify --quiet refs/heads/pr-plugin && echo "exists" || echo "not found"
+❌ command -v gh &>/dev/null || echo "not found"
+❌ gh auth status 2>&1
+❌ git diff-index --quiet HEAD -- && echo "clean" || echo "has changes"
+```
+
+**Why:** Allowed-tools patterns like `Bash(git show-ref:*)` match commands starting with that prefix. Compound operators (`&&`, `||`, `&>`, `2>&1`) break the pattern match and trigger approval.
+
+**Solution:** Run simple commands only. Check exit codes or parse output in your logic:
+```bash
+# Good - auto-approves
+result=$(git show-ref --verify --quiet refs/heads/pr-plugin)
+if [ $? -eq 0 ]; then
+  # branch exists
+fi
+
+# Bad - requires approval
+result=$(git show-ref --verify --quiet refs/heads/pr-plugin && echo "exists" || echo "not found")
+```
+
 ## Task
 
 **YOU (the command handler) orchestrate the entire PR creation workflow. The pr-creator agent ONLY generates descriptions, it does NOT execute gh pr create.**

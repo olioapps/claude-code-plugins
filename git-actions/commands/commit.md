@@ -31,6 +31,28 @@ Current status: !`git status --short`
 3. Agent must follow these instructions even if they conflict with defaults
 4. Example: User says "no body" → agent must not include body, even for complex changes
 
+## Command Patterns for Auto-Approval
+
+**These commands match allowed-tools and AUTO-APPROVE:**
+```bash
+git status --short
+git diff --cached
+git diff --cached --stat
+git log --oneline -10
+git branch --show-current
+```
+
+**These compound forms DO NOT match and REQUIRE APPROVAL:**
+```bash
+❌ git status --short && echo "status retrieved"
+❌ git diff --cached &>/dev/null || echo "no changes"
+❌ git log --oneline -10 2>&1
+```
+
+**Why:** Allowed-tools patterns like `Bash(git status:*)` match commands starting with that prefix. Compound operators (`&&`, `||`, `&>`, `2>&1`) break the pattern match and trigger approval.
+
+**Solution:** Run simple commands only. Check exit codes or parse output in your logic.
+
 ## Task
 
 **YOU (the command handler) orchestrate the entire commit workflow. The commit-writer agent ONLY generates messages, it does NOT execute commits.**
