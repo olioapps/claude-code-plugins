@@ -1,0 +1,26 @@
+{
+  "name": "olio-plugins",
+  "owner": {
+    "name": "Dustin Herboldshimer",
+    "email": "dustin.herboldshimer@olioapps.com"
+  },
+  "metadata": {
+    "description": "Olio Apps' Claude Code plugin marketplace - custom agents, commands, and workflows for enhanced AI-assisted development",
+    "version": "1.0.0",
+    "pluginRoot": "."
+  },
+  "plugins": [
+    {
+      "name": "git-actions",
+      "source": "./git-actions",
+      "description": "Automated git workflow with AI-powered commit messages and PR management. Includes commands for commits, PR creation/editing, and comprehensive PR reviews.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dustin Herbold-Shimer",
+        "email": "dustin@example.com"
+      },
+      "license": "MIT",
+      "category": "productivity"
+    }
+  ]
+}
