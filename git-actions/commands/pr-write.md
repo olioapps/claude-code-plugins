@@ -32,30 +32,22 @@ Status: !`git status --short`
 
 ## Pre-flight Checks
 
-Execute checks before proceeding:
+Run simple readonly checks (auto-approved):
 
-```bash
-current=$(git branch --show-current)
-base=${1:-main}
+1. Get current branch: `git branch --show-current`
+2. Check if base branch exists: `git show-ref --verify refs/heads/$base`
+3. Check gh CLI installed: `command -v gh`
+4. Check gh auth: `gh auth status`
+5. Check for existing PR: `gh pr view`
+6. Check uncommitted changes: `git diff-index --quiet HEAD`
 
-# 1. Verify not on base branch
-[ "$current" != "$base" ] || { echo "ERROR: On base branch. Create feature branch first."; exit 1; }
-
-# 2. Verify base exists (fallback main→master)
-git show-ref --verify --quiet refs/heads/$base || \
-  ([ "$base" = "main" ] && git show-ref --verify --quiet refs/heads/master && base="master") || \
-  { echo "ERROR: Base branch '$base' not found."; exit 1; }
-
-# 3. Check gh CLI
-command -v gh &>/dev/null || { echo "ERROR: Install gh CLI: https://cli.github.com/"; exit 1; }
-gh auth status &>/dev/null || { echo "ERROR: Run gh auth login"; exit 1; }
-
-# 4. Check uncommitted changes (warn only)
-git diff-index --quiet HEAD -- || echo "WARNING: Uncommitted changes won't be in PR"
-
-# 5. Check existing PR
-gh pr view &>/dev/null && { echo "PR exists. Use /pr:edit to update."; gh pr view --json url -q .url; exit 0; }
-```
+Handle logic in code:
+- If current == base → error "On base branch"
+- If base not found and base == "main" → try master fallback
+- If gh missing → error "Install gh CLI"
+- If not authenticated → error "Run gh auth login"
+- If PR exists → show URL, suggest /pr:edit
+- If uncommitted changes → warn only
 
 ## Task
 
@@ -67,24 +59,21 @@ Follow the workflow below step-by-step.
 
 ### Step 1: Determine Base Branch
 
-```bash
-base="$1"
-# Default to main if not specified (fallback to master)
-if [ -z "$base" ]; then
-  git show-ref --verify --quiet refs/heads/main && base="main"
-  [ -z "$base" ] && git show-ref --verify --quiet refs/heads/master && base="master"
-  [ -z "$base" ] && { echo "ERROR: No default branch found. Specify explicitly."; exit 1; }
-fi
-```
+Parse argument: base = $1 or default to "main"
+
+Check base branch exists:
+- Run `git show-ref --verify refs/heads/$base`
+- If fails and base == "main", try `git show-ref --verify refs/heads/master`
+- If both fail, error "Base branch not found"
 
 ### Step 2: Push Branch
 
-```bash
-# Push if no upstream or local ahead
-git rev-parse --abbrev-ref --symbolic-full-name @{u} &>/dev/null && \
-  [ $(git rev-list --count @{u}..HEAD) -gt 0 ] && git push || \
-  git push -u origin $(git branch --show-current)
-```
+Check if branch needs push:
+- Run `git rev-parse --abbrev-ref --symbolic-full-name @{u}` to check upstream
+- If no upstream, run `git push -u origin <current-branch>`
+- If upstream exists, run `git rev-list --count @{u}..HEAD` to check commits ahead
+- If ahead, run `git push`
+- If already up to date, skip push
 
 ### Step 3: Generate PR Description (Agent)
 
