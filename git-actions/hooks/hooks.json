@@ -1,0 +1,17 @@
+{
+  "description": "Auto-approve safe git and gh CLI commands used by git-actions plugin workflows",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-permissions.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

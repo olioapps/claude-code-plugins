@@ -32,55 +32,29 @@ Status: !`git status --short`
 
 ## Pre-flight Checks
 
-**YOU run these checks using simple commands (auto-approved):**
+Execute checks before proceeding:
 
-1. Get current branch: `git branch --show-current`
-2. Verify not on base branch (compare in code)
-3. Verify base branch exists: `git show-ref --verify --quiet refs/heads/$base`
-4. Check gh CLI installed: `command -v gh`
-5. Check gh authenticated: `gh auth status`
-6. Check uncommitted changes: `git diff-index --quiet HEAD --`
-7. Check existing PR: `gh pr view --json url -q .url`
-
-**Error handling:**
-- If on base branch → error, tell user to create feature branch
-- If base doesn't exist and base=main → try master: `git show-ref --verify --quiet refs/heads/master`
-- If gh missing → error with install URL: https://cli.github.com/
-- If gh not auth → error: "Run gh auth login"
-- If uncommitted changes → warn only
-- If PR exists → show URL, suggest /pr:edit
-
-### CRITICAL: Command Patterns for Auto-Approval
-
-**These commands match allowed-tools and AUTO-APPROVE:**
 ```bash
-git branch --show-current
-git show-ref --verify --quiet refs/heads/main
-command -v gh
-gh auth status
-gh pr view --json url -q .url
-```
+current=$(git branch --show-current)
+base=${1:-main}
 
-**These compound forms DO NOT match and REQUIRE APPROVAL:**
-```bash
-❌ git show-ref --verify --quiet refs/heads/pr-plugin && echo "exists" || echo "not found"
-❌ command -v gh &>/dev/null || echo "not found"
-❌ gh auth status 2>&1
-❌ git diff-index --quiet HEAD -- && echo "clean" || echo "has changes"
-```
+# 1. Verify not on base branch
+[ "$current" != "$base" ] || { echo "ERROR: On base branch. Create feature branch first."; exit 1; }
 
-**Why:** Allowed-tools patterns like `Bash(git show-ref:*)` match commands starting with that prefix. Compound operators (`&&`, `||`, `&>`, `2>&1`) break the pattern match and trigger approval.
+# 2. Verify base exists (fallback main→master)
+git show-ref --verify --quiet refs/heads/$base || \
+  ([ "$base" = "main" ] && git show-ref --verify --quiet refs/heads/master && base="master") || \
+  { echo "ERROR: Base branch '$base' not found."; exit 1; }
 
-**Solution:** Run simple commands only. Check exit codes or parse output in your logic:
-```bash
-# Good - auto-approves
-result=$(git show-ref --verify --quiet refs/heads/pr-plugin)
-if [ $? -eq 0 ]; then
-  # branch exists
-fi
+# 3. Check gh CLI
+command -v gh &>/dev/null || { echo "ERROR: Install gh CLI: https://cli.github.com/"; exit 1; }
+gh auth status &>/dev/null || { echo "ERROR: Run gh auth login"; exit 1; }
 
-# Bad - requires approval
-result=$(git show-ref --verify --quiet refs/heads/pr-plugin && echo "exists" || echo "not found")
+# 4. Check uncommitted changes (warn only)
+git diff-index --quiet HEAD -- || echo "WARNING: Uncommitted changes won't be in PR"
+
+# 5. Check existing PR
+gh pr view &>/dev/null && { echo "PR exists. Use /pr:edit to update."; gh pr view --json url -q .url; exit 0; }
 ```
 
 ## Task
