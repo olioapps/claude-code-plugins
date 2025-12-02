@@ -1,6 +1,6 @@
 ---
 allowed-tools: [Read, Glob, Grep, Write, AskUserQuestion, Task]
-argument-hint: [--skip-clarification]
+argument-hint: [--skip-clarification] [--dry-run]
 description: Generate AI-optimized documentation schema for this codebase
 ---
 
@@ -8,8 +8,30 @@ description: Generate AI-optimized documentation schema for this codebase
 
 Arguments: `/codebase-documentation:document-codebase [FLAGS]`
 - **--skip-clarification** - Skip Phase 0 questions, auto-detect everything
+- **--dry-run** - Preview what would be generated without creating files
 
 This command generates a complete documentation system for AI agents to efficiently navigate the codebase.
+
+## Progress Reporting
+
+Display progress to the user at each phase transition:
+
+```markdown
+## 🔍 Generating Codebase Documentation...
+
+**Progress:**
+- [ ] Phase 0: Clarification
+- [ ] Phase 0.5: Checking existing docs
+- [ ] Phase 1: Analyzing codebase structure
+- [ ] Phase 2: Generating documentation files
+- [ ] Phase 3: Creating utility commands
+- [ ] Phase 4: Summary report
+```
+
+Update checkboxes as each phase completes:
+- `[x]` for completed phases
+- `[ ]` for pending phases
+- Show "→" arrow for current phase (e.g., `→ [ ] Phase 1: Analyzing...`)
 
 ## Workflow
 
@@ -34,6 +56,23 @@ Use AskUserQuestion to gather context:
 - Free text response
 
 Store user responses for agent context.
+
+### Phase 0.5: Check Existing Documentation
+
+Before proceeding to analysis, check if documentation already exists:
+
+```
+Check for: .claude/docs/codebase-schema.yaml
+```
+
+**If file exists, use AskUserQuestion:**
+- "Documentation already exists. What would you like to do?"
+- Options:
+  - **Regenerate** - Overwrite all existing documentation
+  - **Cancel** - Abort the command
+
+If user selects Regenerate, proceed to Phase 1. If Cancel, abort with message:
+"Documentation generation cancelled. Existing documentation preserved."
 
 ### Phase 1: Invoke Codebase Analyzer
 
@@ -66,8 +105,66 @@ Validate that analysis contains:
 - [ ] metadata.type exists
 - [ ] At least one domain defined
 - [ ] At least one file_pattern defined
+- [ ] Each domain has a confidence level (high/medium/low)
+- [ ] Each domain purpose is a single sentence (no compound "and" descriptions)
 
 If validation fails, report error and abort.
+
+### Phase 1.5: Dry Run Preview (if --dry-run flag)
+
+**Only execute this phase if `--dry-run` flag is present.**
+
+Display a comprehensive preview of what would be generated:
+
+```markdown
+## 📋 Dry Run Preview
+
+**Files to be created:**
+- `.claude/docs/codebase-schema.yaml`
+- `.claude/docs/INDEX.md`
+{For each domain in analysis:}
+- `.claude/docs/domains/{domain_name}.md`
+{For each significant pattern in analysis:}
+- `.claude/docs/patterns/{pattern_name}.md`
+- `.claude/commands/prime.md`
+- `.claude/commands/audit-docs.md`
+- `.claude/commands/map-domain.md`
+- `CLAUDE.md` (update)
+
+**Domains identified ({count}):**
+| Domain | Location | Purpose | Confidence |
+|--------|----------|---------|------------|
+{For each domain from analysis:}
+| {name} | `{location}` | {purpose} | {confidence} |
+
+**Patterns to document ({count}):**
+{For each pattern from analysis:}
+- {pattern_name}: `{pattern}` ({count} files)
+
+**Schema preview:**
+```yaml
+metadata:
+  project: {from analysis}
+  type: {from analysis}
+  stack:
+    language: {from analysis}
+    framework: {from analysis}
+  architecture: {from analysis}
+
+domains:
+  {first 2-3 domain names}:
+    ...
+```
+```
+
+Then use AskUserQuestion:
+- "Proceed with documentation generation?"
+- Options:
+  - **Yes** - Generate all documentation files
+  - **No** - Cancel without creating files
+
+If Yes, proceed to Phase 2. If No, abort with message:
+"Dry run complete. No files were created."
 
 ### Phase 2: Invoke Documentation Generator
 
@@ -98,149 +195,29 @@ Return confirmation of files created.
 ---END---
 ```
 
-### Phase 3: Create Utility Commands
+### Phase 2.5: Completeness Verification (Optional)
 
-Write these template files directly:
+**Skip if analysis had <5 domains.**
 
-**`.claude/commands/audit-docs.md`:**
-```markdown
----
-description: Detect documentation drift between schema and actual codebase
-argument-hint: [--verbose] [--auto-fix] [--domain <name>]
----
+Before proceeding, verify the analysis captured structural boundaries appropriately.
 
-# Documentation Audit Command
+**Check for potential missed domains:**
+1. Review directories that were NOT made into domains
+2. For each, verify it's appropriately covered by another domain
+3. Check for file patterns that span multiple directories (cross-cutting concerns)
 
-Compare `.claude/docs/codebase-schema.yaml` against actual filesystem structure to detect drift.
+**Check for over-combined domains:**
+1. Review any domain with `confidence: low` or `confidence: medium`
+2. Review any domain with count >50 files
+3. Verify sub-directories don't have distinct conventions
 
-## Instructions
+**If issues found:**
+- Note them in observations for the documentation generator
+- The generator will add them to the INDEX as "potential areas for further documentation"
 
-### 1. Load Baseline
-Read `.claude/docs/codebase-schema.yaml` to establish expected state.
+**This check is about structural boundaries, not specific domain names.**
 
-### 2. Scan Filesystem
-For each domain in the schema:
-- Navigate to the documented location
-- Count files and compare to documented count
-- Verify key files still exist
-- Check for new undocumented directories
-
-### 3. Classify Drift
-
-**TRIVIAL** (Auto-fixable):
-- File counts differ by ±5 or less
-- Can auto-update with `--auto-fix`
-
-**MINOR** (Review needed):
-- File counts differ by >5
-- New directories following existing patterns
-- Needs manual review
-
-**SIGNIFICANT** (Investigation required):
-- Completely undocumented domains
-- Pattern violations
-- Major structural changes
-
-### 4. Generate Report
-
-```markdown
-# Documentation Audit Report
-Generated: {date}
-
-## Summary
-- ✓ X domains up-to-date
-- ⚠ X domains with drift
-
-## Drift Details
-
-### TRIVIAL
-{List items}
-
-### MINOR
-{List items}
-
-### SIGNIFICANT
-{List items}
-
-## Recommended Actions
-1. {Actions to take}
-```
-
-### 5. Auto-fix (if `--auto-fix`)
-Update counts and timestamps for TRIVIAL drift only.
-
-## Examples
-```bash
-/audit-docs
-/audit-docs --verbose
-/audit-docs --auto-fix
-/audit-docs --domain {domain_name}
-```
-```
-
-**`.claude/commands/map-domain.md`:**
-```markdown
----
-description: Deep domain analysis to generate/update documentation
-argument-hint: <domain-name> [--update-schema] [--update-docs]
----
-
-# Domain Mapping Command
-
-Perform deep analysis of a specified domain to generate or update its documentation.
-
-## Instructions
-
-### 1. Validate Domain
-Verify the domain exists in the schema or as a valid path.
-
-### 2. Deep Scan
-Thoroughly explore the domain:
-- Enumerate all files and directories
-- Identify file types and counts
-- Extract exports and dependencies
-- Detect naming conventions
-- Find patterns and anti-patterns
-
-### 3. Generate Domain Map
-
-```markdown
-# Domain Map: {domain_name}
-
-## Summary
-- **Location**: {path}
-- **Files**: X files
-- **Last Modified**: {date}
-
-## Structure
-{Directory tree}
-
-## Key Files
-{Important files with descriptions}
-
-## Patterns Detected
-{Naming, organization, coding patterns}
-
-## Dependencies
-{Internal and external dependencies}
-
-## Recommendations
-{Suggested improvements or documentation updates}
-```
-
-### 4. Update Docs (if flags provided)
-- `--update-schema`: Update codebase-schema.yaml with findings
-- `--update-docs`: Update or create domain documentation
-
-## Examples
-```bash
-/map-domain {domain_name}
-/map-domain {domain_name} --update-docs
-/map-domain {path/to/directory} --update-schema --update-docs
-```
-```
-
-### Phase 4: Report Summary
+### Phase 3: Report Summary
 
 Present final summary to user:
 
@@ -254,10 +231,13 @@ Present final summary to user:
 - Framework: {framework}
 {other stack items}
 
+**Structure Summary:**
+- Domains documented: {count}
+- File patterns covered: {count}
+- Task mappings created: {count}
+
 **Documentation Created**:
 - `.claude/commands/prime.md`
-- `.claude/commands/audit-docs.md`
-- `.claude/commands/map-domain.md`
 - `.claude/docs/codebase-schema.yaml`
 - `.claude/docs/INDEX.md`
 - `.claude/docs/domains/` - {count} domain docs
@@ -265,20 +245,37 @@ Present final summary to user:
 - Updated `CLAUDE.md`
 
 **Domains Documented**:
-{list domains with brief descriptions}
+| Domain | Purpose | Files |
+|--------|---------|-------|
+| {name} | {purpose} | {count} |
+{list all domains}
 
-**Patterns Documented**:
-{list patterns with brief descriptions}
+**Quality Checks**:
+- [x] All structural boundaries captured
+- [x] All patterns mapped to domains
+- [x] INDEX table is complete
+- [x] No overlapping domains
+
+**Potential Gaps** (if any):
+- {List any directories that might warrant separate docs in the future}
+- {List any patterns without clear domain ownership}
+- {List any medium/low confidence domains that may need review}
 
 **Architecture Summary**:
 {from analysis.metadata.architecture}
 
 ---
 
+**Maintenance Commands** (from plugin):
+- `/codebase-documentation:audit-docs` - Check for documentation drift
+- `/codebase-documentation:map-domain <name>` - Deep-dive domain analysis
+- `/codebase-documentation:update-docs` - Refresh documentation intelligently
+
 **Next Steps**:
 1. Run `/prime` to load codebase context
-2. Use `/audit-docs` periodically to check for drift
-3. Use `/map-domain <name>` for deep dives into specific areas
+2. Review any noted "Potential Gaps" and decide if additional documentation needed
+3. Use `/codebase-documentation:audit-docs` periodically to check for drift
+4. Use `/codebase-documentation:update-docs` to refresh docs after major changes
 ```
 
 ## Responsibilities
@@ -286,7 +283,6 @@ Present final summary to user:
 **YOU (handler):**
 - Ask clarification questions (Phase 0)
 - Invoke agents and parse their outputs
-- Create utility command files directly
 - Report final summary
 
 **codebase-analyzer agent:**
@@ -299,7 +295,7 @@ Present final summary to user:
 - Use templates and analysis data
 - Return confirmation of files created
 
-**Agents do NOT create utility commands. You do NOT explore codebase directly.**
+**You do NOT explore codebase directly - agents do the exploration.**
 
 ## Error Handling
 
@@ -315,9 +311,6 @@ Present final summary to user:
 - **Documentation generator fails** → Report error with partial progress
 - **Write permission denied** → "Cannot create files. Check directory permissions."
 - **Partial file creation** → Report which files succeeded/failed
-
-### Phase 3 Errors
-- **Cannot write utility commands** → Report error, documentation is still usable
 
 ### Recovery
 - If any phase partially succeeds, report what was created
@@ -340,15 +333,27 @@ Present final summary to user:
 # Auto-detects everything, no questions asked
 ```
 
+### Dry Run Preview
+
+```bash
+/codebase-documentation:document-codebase --dry-run
+# Shows preview of what would be generated, asks for confirmation
+```
+
+### Combined Flags
+
+```bash
+/codebase-documentation:document-codebase --skip-clarification --dry-run
+# Auto-detect + preview before generating
+```
+
 ### Typical Output
 
 After successful run:
 ```
 .claude/
 ├── commands/
-│   ├── prime.md
-│   ├── audit-docs.md
-│   └── map-domain.md
+│   └── prime.md
 ├── docs/
 │   ├── codebase-schema.yaml
 │   ├── INDEX.md
@@ -361,3 +366,39 @@ After successful run:
 │       └── services.md
 CLAUDE.md (updated)
 ```
+
+**Note:** Utility commands (`audit-docs`, `map-domain`, `update-docs`) are provided by the plugin and invoked via `/codebase-documentation:*` namespace.
+
+## Troubleshooting
+
+### "Analysis failed: No source files found"
+- Ensure you're in the project root directory
+- Check if source code is in a subdirectory (try navigating there first)
+- Verify files aren't hidden by .gitignore patterns
+- Make sure the project has actual source files, not just configuration
+
+### "Cannot create files: Permission denied"
+- Ensure the `.claude/` directory is writable
+- Check that you have write permissions in the project directory
+- Try running with appropriate permissions
+
+### "Domain count seems wrong"
+- Use `--skip-clarification` to bypass auto-detection issues
+- Manually review results with `/codebase-documentation:map-domain <name>` command
+- The analyzer may have combined or split domains based on structural boundaries
+- Report patterns that confused the analyzer for future improvements
+
+### "Documentation already exists" prompt keeps appearing
+- This is the idempotency check working as intended
+- Select "Regenerate" to overwrite existing documentation
+- Select "Cancel" to preserve existing documentation
+
+### "Dry run shows unexpected results"
+- Review the analysis output carefully before confirming
+- Use `--dry-run` to preview changes without risk
+- If domains look wrong, cancel and provide more specific architecture notes
+
+### Analysis takes too long
+- Large codebases (>2000 files) may take several minutes
+- The analyzer samples large directories rather than reading every file
+- Use `--skip-clarification` to save time on repeated runs

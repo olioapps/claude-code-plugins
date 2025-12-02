@@ -36,6 +36,86 @@ Explore thoroughly but efficiently. Your goal is to produce a **complete, accura
 
 ---
 
+## Exploration Strategy
+
+### Directory Filtering
+
+**Skip these directories entirely:**
+- `node_modules/`, `vendor/`, `.venv/`, `venv/`, `env/`
+- `dist/`, `build/`, `out/`, `.next/`, `.nuxt/`, `.output/`
+- `.git/`, `.svn/`, `.hg/`
+- `coverage/`, `.nyc_output/`, `__pycache__/`
+- `tmp/`, `temp/`, `cache/`, `.cache/`
+
+**Scan but don't count as source:**
+- `public/`, `static/`, `assets/` (note existence, focus on code)
+- `docs/`, `documentation/` (reference for context only)
+
+### Sampling Strategy
+
+For large directories (>50 files):
+1. Sample 10-15 representative files
+2. Look for patterns in naming/structure
+3. Use file counts without reading every file
+4. Document the sampling approach in observations
+
+---
+
+## Domain Granularity Detection
+
+When identifying domains, detect structural boundaries rather than matching known directory names.
+
+### Boundary Types
+
+**Convention Boundaries**
+Sub-directories with different file naming patterns suggest separate domains:
+- If `dir/sub1/` uses `*.foo.ts` and `dir/sub2/` uses `*.bar.ts` → likely separate domains
+- If one sub-directory uses PascalCase and another uses kebab-case → likely separate domains
+- Detect patterns by sampling files, not by assuming what should exist
+
+**Purpose Boundaries**
+Sub-directories with their own organizational markers suggest separate domains:
+- Separate `index.ts` or barrel exports
+- Separate README files
+- Different internal directory structures
+- Distinct export patterns (one exports classes, another exports functions)
+
+**Scale Boundaries**
+Consider splitting when a combined domain would be cognitively unwieldy:
+- Domain contains >2 distinct sub-directories with their own conventions
+- Describing the domain's purpose requires compound sentences ("X and Y and Z")
+- The domain has sub-areas with different task workflows
+
+### Cross-Cutting Pattern Detection
+
+Look for files that span multiple directories and may warrant their own domain:
+- Files sharing a common suffix (e.g., `*Service.ts`, `*Handler.ts`) across 3+ directories
+- A naming convention appearing in >20% of directories
+- Files referenced from multiple unrelated domains (via imports)
+
+**Discover these patterns from the codebase—do not assume what they should be.**
+
+### Package Boundaries (Mono-repos)
+
+In mono-repos, treat each package's internal structure as a separate namespace:
+- `packages/app-a/components/` and `packages/app-b/components/` are separate domains
+- Only create cross-package domains for truly shared code (e.g., `packages/shared/`)
+- Document cross-package dependencies in observations
+
+### When to Split vs Combine
+
+**Split when:**
+- Sub-directories have different file conventions
+- A domain has >3 distinct sub-areas with different purposes
+- The INDEX table row would need more than one sentence to describe purpose
+
+**Combine when:**
+- Directories share identical file patterns and purpose
+- Combined documentation would be <100 lines
+- The directories are tightly coupled (heavy cross-imports)
+
+---
+
 ## Analysis Targets by Application Type
 
 ### Frontend Applications
@@ -154,28 +234,37 @@ Create mental map of:
 
 ### Step 4: Identify Domains
 
-A domain is a logical grouping of related code. Look for:
+A domain is a logical grouping of related code. Identify domains by **observing structure**, not by matching known names.
 
-**Explicit domains** (directories with clear purpose):
-- `auth/`, `authentication/`
-- `users/`, `accounts/`
-- `payments/`, `billing/`
-- `api/`, `routes/`, `controllers/`
-- `components/`, `views/`, `pages/`
-- `services/`, `providers/`
-- `models/`, `entities/`
-- `utils/`, `helpers/`, `lib/`
+**Detection approach:**
 
-**Implicit domains** (patterns within directories):
-- Feature folders in `src/features/`
-- Route groupings in `pages/` or `app/`
-- Service groupings in `services/`
+1. **Start at top-level directories** - Each significant directory is a domain candidate
+2. **Check for boundary signals** - Apply the granularity detection rules above
+3. **Decide split vs combine** - Use structural evidence, not assumptions
 
-For each domain, record:
+**Structural signals that indicate a domain:**
+- Directory has consistent file naming patterns
+- Directory has its own index/barrel file
+- Directory contents serve a single, describable purpose
+- Directory is referenced as a unit by other code
+
+**Structural signals that indicate sub-domains (split needed):**
+- Sub-directories have different file patterns
+- Sub-directories have their own index files
+- Sub-directories serve distinct purposes
+- Sub-directories have different dependency patterns
+
+**What to record for each domain:**
 - Location (path)
-- Purpose (what it handles)
+- Purpose (one clear sentence—if you need "and" to describe it, consider splitting)
 - File count (exact or ~approximate)
 - Key files (entry points, important modules)
+- Confidence: `high` (clear boundaries), `medium` (reasonable inference), `low` (could be split differently)
+
+**Do NOT:**
+- Create domains just because a directory has a common name like "utils"
+- Assume domains based on framework conventions
+- Combine unrelated directories just because they're both "small"
 
 ### Step 5: Detect File Patterns
 
@@ -257,8 +346,9 @@ metadata:
 domains:
   {domain_name}:
     location: {path}
-    purpose: {what this domain handles}
+    purpose: {what this domain handles - ONE sentence}
     count: {file count or ~approximate}
+    confidence: {high|medium|low}
     key_files:
       - {important file 1}
       - {important file 2}
@@ -285,6 +375,133 @@ observations:
   - {notable observation 1}
   - {notable observation 2}
   - {any warnings or concerns}
+---END---
+```
+
+### Example Output
+
+Here's what a complete analysis looks like for a medium-sized backend application:
+
+```
+---ANALYSIS---
+metadata:
+  project: acme-shop-api
+  type: backend
+  stack:
+    language: TypeScript
+    version: "5.2"
+    framework: Express
+    framework_version: "4.18"
+    database: PostgreSQL
+    orm: Prisma
+    api_style: RESTful
+  architecture: Layered architecture with routes → controllers → services → repositories
+
+domains:
+  routes:
+    location: src/routes
+    purpose: HTTP route definitions and request validation
+    count: 12
+    confidence: high
+    key_files:
+      - src/routes/index.ts
+      - src/routes/products.routes.ts
+      - src/routes/users.routes.ts
+
+  controllers:
+    location: src/controllers
+    purpose: Request handling and response formatting
+    count: 10
+    confidence: high
+    key_files:
+      - src/controllers/products.controller.ts
+      - src/controllers/auth.controller.ts
+
+  services:
+    location: src/services
+    purpose: Business logic and orchestration
+    count: 15
+    confidence: high
+    key_files:
+      - src/services/product.service.ts
+      - src/services/order.service.ts
+
+  models:
+    location: prisma/schema.prisma
+    purpose: Database schema and model definitions
+    count: 1
+    confidence: high
+    key_files:
+      - prisma/schema.prisma
+
+  middleware:
+    location: src/middleware
+    purpose: Request preprocessing and authentication
+    count: 5
+    confidence: high
+    key_files:
+      - src/middleware/auth.middleware.ts
+      - src/middleware/error.middleware.ts
+
+  utils:
+    location: src/utils
+    purpose: Shared utility functions and helpers
+    count: 8
+    confidence: medium
+    key_files:
+      - src/utils/logger.ts
+      - src/utils/validators.ts
+
+file_patterns:
+  controllers:
+    pattern: src/controllers/*.controller.ts
+    example: src/controllers/products.controller.ts
+    count: 10
+    purpose: Handle HTTP requests and format responses
+
+  services:
+    pattern: src/services/*.service.ts
+    example: src/services/product.service.ts
+    count: 15
+    purpose: Implement business logic
+
+  routes:
+    pattern: src/routes/*.routes.ts
+    example: src/routes/products.routes.ts
+    count: 12
+    purpose: Define API endpoints and validation
+
+  tests:
+    pattern: src/**/*.test.ts
+    example: src/services/product.service.test.ts
+    count: ~30
+    purpose: Unit and integration tests
+
+config_files:
+  package.json:
+    path: package.json
+    purpose: Dependencies and npm scripts
+  tsconfig.json:
+    path: tsconfig.json
+    purpose: TypeScript configuration
+  prisma/schema.prisma:
+    path: prisma/schema.prisma
+    purpose: Database schema definition
+  .env.example:
+    path: .env.example
+    purpose: Environment variable template
+
+testing:
+  framework: Jest
+  location: src/**/*.test.ts
+  pattern: "*.test.ts"
+  coverage: jest --coverage
+
+observations:
+  - Well-organized layered architecture with clear separation of concerns
+  - Prisma ORM used for database access with PostgreSQL
+  - Authentication middleware present but OAuth integration incomplete
+  - ~30 test files covering services and controllers
 ---END---
 ```
 
@@ -319,6 +536,9 @@ If significant directories are empty or minimal:
 ❌ Assuming patterns without seeing multiple examples
 ❌ Ignoring config files that reveal important info
 ❌ Over-counting by including generated/vendor files
+❌ Imposing framework-specific domain expectations (e.g., assuming "providers" domain exists because it's React)
+❌ Combining structurally distinct directories to hit an arbitrary domain count
+❌ Using compound sentences to describe domain purpose (signals need to split)
 
 ---
 
