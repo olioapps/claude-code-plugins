@@ -1,6 +1,6 @@
 ---
 allowed-tools: [Read, Glob, Grep, Write, AskUserQuestion, Task]
-argument-hint: [--skip-clarification]
+argument-hint: [--skip-clarification] [--dry-run]
 description: Generate AI-optimized documentation schema for this codebase
 ---
 
@@ -8,8 +8,30 @@ description: Generate AI-optimized documentation schema for this codebase
 
 Arguments: `/codebase-documentation:document-codebase [FLAGS]`
 - **--skip-clarification** - Skip Phase 0 questions, auto-detect everything
+- **--dry-run** - Preview what would be generated without creating files
 
 This command generates a complete documentation system for AI agents to efficiently navigate the codebase.
+
+## Progress Reporting
+
+Display progress to the user at each phase transition:
+
+```markdown
+## 🔍 Generating Codebase Documentation...
+
+**Progress:**
+- [ ] Phase 0: Clarification
+- [ ] Phase 0.5: Checking existing docs
+- [ ] Phase 1: Analyzing codebase structure
+- [ ] Phase 2: Generating documentation files
+- [ ] Phase 3: Creating utility commands
+- [ ] Phase 4: Summary report
+```
+
+Update checkboxes as each phase completes:
+- `[x]` for completed phases
+- `[ ]` for pending phases
+- Show "→" arrow for current phase (e.g., `→ [ ] Phase 1: Analyzing...`)
 
 ## Workflow
 
@@ -34,6 +56,23 @@ Use AskUserQuestion to gather context:
 - Free text response
 
 Store user responses for agent context.
+
+### Phase 0.5: Check Existing Documentation
+
+Before proceeding to analysis, check if documentation already exists:
+
+```
+Check for: .claude/docs/codebase-schema.yaml
+```
+
+**If file exists, use AskUserQuestion:**
+- "Documentation already exists. What would you like to do?"
+- Options:
+  - **Regenerate** - Overwrite all existing documentation
+  - **Cancel** - Abort the command
+
+If user selects Regenerate, proceed to Phase 1. If Cancel, abort with message:
+"Documentation generation cancelled. Existing documentation preserved."
 
 ### Phase 1: Invoke Codebase Analyzer
 
@@ -70,6 +109,62 @@ Validate that analysis contains:
 - [ ] Each domain purpose is a single sentence (no compound "and" descriptions)
 
 If validation fails, report error and abort.
+
+### Phase 1.5: Dry Run Preview (if --dry-run flag)
+
+**Only execute this phase if `--dry-run` flag is present.**
+
+Display a comprehensive preview of what would be generated:
+
+```markdown
+## 📋 Dry Run Preview
+
+**Files to be created:**
+- `.claude/docs/codebase-schema.yaml`
+- `.claude/docs/INDEX.md`
+{For each domain in analysis:}
+- `.claude/docs/domains/{domain_name}.md`
+{For each significant pattern in analysis:}
+- `.claude/docs/patterns/{pattern_name}.md`
+- `.claude/commands/prime.md`
+- `.claude/commands/audit-docs.md`
+- `.claude/commands/map-domain.md`
+- `CLAUDE.md` (update)
+
+**Domains identified ({count}):**
+| Domain | Location | Purpose | Confidence |
+|--------|----------|---------|------------|
+{For each domain from analysis:}
+| {name} | `{location}` | {purpose} | {confidence} |
+
+**Patterns to document ({count}):**
+{For each pattern from analysis:}
+- {pattern_name}: `{pattern}` ({count} files)
+
+**Schema preview:**
+```yaml
+metadata:
+  project: {from analysis}
+  type: {from analysis}
+  stack:
+    language: {from analysis}
+    framework: {from analysis}
+  architecture: {from analysis}
+
+domains:
+  {first 2-3 domain names}:
+    ...
+```
+```
+
+Then use AskUserQuestion:
+- "Proceed with documentation generation?"
+- Options:
+  - **Yes** - Generate all documentation files
+  - **No** - Cancel without creating files
+
+If Yes, proceed to Phase 2. If No, abort with message:
+"Dry run complete. No files were created."
 
 ### Phase 2: Invoke Documentation Generator
 
@@ -381,6 +476,20 @@ Present final summary to user:
 # Auto-detects everything, no questions asked
 ```
 
+### Dry Run Preview
+
+```bash
+/codebase-documentation:document-codebase --dry-run
+# Shows preview of what would be generated, asks for confirmation
+```
+
+### Combined Flags
+
+```bash
+/codebase-documentation:document-codebase --skip-clarification --dry-run
+# Auto-detect + preview before generating
+```
+
 ### Typical Output
 
 After successful run:
@@ -402,3 +511,37 @@ After successful run:
 │       └── services.md
 CLAUDE.md (updated)
 ```
+
+## Troubleshooting
+
+### "Analysis failed: No source files found"
+- Ensure you're in the project root directory
+- Check if source code is in a subdirectory (try navigating there first)
+- Verify files aren't hidden by .gitignore patterns
+- Make sure the project has actual source files, not just configuration
+
+### "Cannot create files: Permission denied"
+- Ensure the `.claude/` directory is writable
+- Check that you have write permissions in the project directory
+- Try running with appropriate permissions
+
+### "Domain count seems wrong"
+- Use `--skip-clarification` to bypass auto-detection issues
+- Manually review results with `/map-domain` commands
+- The analyzer may have combined or split domains based on structural boundaries
+- Report patterns that confused the analyzer for future improvements
+
+### "Documentation already exists" prompt keeps appearing
+- This is the idempotency check working as intended
+- Select "Regenerate" to overwrite existing documentation
+- Select "Cancel" to preserve existing documentation
+
+### "Dry run shows unexpected results"
+- Review the analysis output carefully before confirming
+- Use `--dry-run` to preview changes without risk
+- If domains look wrong, cancel and provide more specific architecture notes
+
+### Analysis takes too long
+- Large codebases (>2000 files) may take several minutes
+- The analyzer samples large directories rather than reading every file
+- Use `--skip-clarification` to save time on repeated runs

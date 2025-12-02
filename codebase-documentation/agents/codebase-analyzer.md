@@ -36,6 +36,31 @@ Explore thoroughly but efficiently. Your goal is to produce a **complete, accura
 
 ---
 
+## Exploration Strategy
+
+### Directory Filtering
+
+**Skip these directories entirely:**
+- `node_modules/`, `vendor/`, `.venv/`, `venv/`, `env/`
+- `dist/`, `build/`, `out/`, `.next/`, `.nuxt/`, `.output/`
+- `.git/`, `.svn/`, `.hg/`
+- `coverage/`, `.nyc_output/`, `__pycache__/`
+- `tmp/`, `temp/`, `cache/`, `.cache/`
+
+**Scan but don't count as source:**
+- `public/`, `static/`, `assets/` (note existence, focus on code)
+- `docs/`, `documentation/` (reference for context only)
+
+### Sampling Strategy
+
+For large directories (>50 files):
+1. Sample 10-15 representative files
+2. Look for patterns in naming/structure
+3. Use file counts without reading every file
+4. Document the sampling approach in observations
+
+---
+
 ## Domain Granularity Detection
 
 When identifying domains, detect structural boundaries rather than matching known directory names.
@@ -350,6 +375,133 @@ observations:
   - {notable observation 1}
   - {notable observation 2}
   - {any warnings or concerns}
+---END---
+```
+
+### Example Output
+
+Here's what a complete analysis looks like for a medium-sized backend application:
+
+```
+---ANALYSIS---
+metadata:
+  project: acme-shop-api
+  type: backend
+  stack:
+    language: TypeScript
+    version: "5.2"
+    framework: Express
+    framework_version: "4.18"
+    database: PostgreSQL
+    orm: Prisma
+    api_style: RESTful
+  architecture: Layered architecture with routes → controllers → services → repositories
+
+domains:
+  routes:
+    location: src/routes
+    purpose: HTTP route definitions and request validation
+    count: 12
+    confidence: high
+    key_files:
+      - src/routes/index.ts
+      - src/routes/products.routes.ts
+      - src/routes/users.routes.ts
+
+  controllers:
+    location: src/controllers
+    purpose: Request handling and response formatting
+    count: 10
+    confidence: high
+    key_files:
+      - src/controllers/products.controller.ts
+      - src/controllers/auth.controller.ts
+
+  services:
+    location: src/services
+    purpose: Business logic and orchestration
+    count: 15
+    confidence: high
+    key_files:
+      - src/services/product.service.ts
+      - src/services/order.service.ts
+
+  models:
+    location: prisma/schema.prisma
+    purpose: Database schema and model definitions
+    count: 1
+    confidence: high
+    key_files:
+      - prisma/schema.prisma
+
+  middleware:
+    location: src/middleware
+    purpose: Request preprocessing and authentication
+    count: 5
+    confidence: high
+    key_files:
+      - src/middleware/auth.middleware.ts
+      - src/middleware/error.middleware.ts
+
+  utils:
+    location: src/utils
+    purpose: Shared utility functions and helpers
+    count: 8
+    confidence: medium
+    key_files:
+      - src/utils/logger.ts
+      - src/utils/validators.ts
+
+file_patterns:
+  controllers:
+    pattern: src/controllers/*.controller.ts
+    example: src/controllers/products.controller.ts
+    count: 10
+    purpose: Handle HTTP requests and format responses
+
+  services:
+    pattern: src/services/*.service.ts
+    example: src/services/product.service.ts
+    count: 15
+    purpose: Implement business logic
+
+  routes:
+    pattern: src/routes/*.routes.ts
+    example: src/routes/products.routes.ts
+    count: 12
+    purpose: Define API endpoints and validation
+
+  tests:
+    pattern: src/**/*.test.ts
+    example: src/services/product.service.test.ts
+    count: ~30
+    purpose: Unit and integration tests
+
+config_files:
+  package.json:
+    path: package.json
+    purpose: Dependencies and npm scripts
+  tsconfig.json:
+    path: tsconfig.json
+    purpose: TypeScript configuration
+  prisma/schema.prisma:
+    path: prisma/schema.prisma
+    purpose: Database schema definition
+  .env.example:
+    path: .env.example
+    purpose: Environment variable template
+
+testing:
+  framework: Jest
+  location: src/**/*.test.ts
+  pattern: "*.test.ts"
+  coverage: jest --coverage
+
+observations:
+  - Well-organized layered architecture with clear separation of concerns
+  - Prisma ORM used for database access with PostgreSQL
+  - Authentication middleware present but OAuth integration incomplete
+  - ~30 test files covering services and controllers
 ---END---
 ```
 

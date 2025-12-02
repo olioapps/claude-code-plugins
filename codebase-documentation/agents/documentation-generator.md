@@ -205,6 +205,12 @@ Create one file per major domain at `.claude/docs/domains/{domain_name}.md`:
 
 **Purpose**: {from analysis}
 **Location**: `{from analysis}`
+**Confidence Level**: {high|medium|low} _(from analysis)_
+
+{If confidence is medium or low, include this block:}
+> ⚠️ **Review Recommended**: This domain was identified with {confidence} confidence.
+> Consider reviewing whether it should be split, combined, or restructured.
+> Use `/map-domain {domain_name}` for deeper analysis.
 
 ---
 
