@@ -1,0 +1,9 @@
+{
+  "name": "codebase-documentation",
+  "version": "1.0.0",
+  "description": "Generate AI-optimized documentation schema for any codebase",
+  "author": {
+    "name": "Olio Apps",
+    "email": "dustin.herboldshimer@olioapps.com"
+  }
+}
