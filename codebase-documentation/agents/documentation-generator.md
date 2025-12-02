@@ -479,17 +479,41 @@ Write `.claude/docs/INDEX.md` using template above.
 
 ### Step 4: Create Domain Docs
 
-For each domain in analysis (limit to 3-6 most important):
+For each domain in the analysis:
 - Create `.claude/docs/domains/{domain}.md`
 - Fill in template with domain-specific details
 - Link to related domains and patterns
 
+**Domain count guidance** (not limits):
+| Codebase Complexity | Typical Domain Count |
+|---------------------|---------------------|
+| Simple (few directories) | 3-5 domains |
+| Medium (multiple distinct areas) | 6-10 domains |
+| Complex (mono-repo, large app) | 10-15+ domains |
+
+**Key rule**: If the analyzer identified a domain as structurally distinct, document it. Do not skip domains to hit a count target.
+
+**When to combine (rare):**
+- Domains share identical file patterns AND purpose
+- Combined documentation would be <100 lines
+- The domains are tightly coupled
+
 ### Step 5: Create Pattern Guides
 
-For each file pattern (limit to 3-5 most important):
+For each significant file pattern in the analysis:
 - Create `.claude/docs/patterns/{pattern}.md`
 - Include actual code examples from codebase
 - Document conventions observed
+
+**Pattern significance criteria:**
+- Pattern has 5+ files following it
+- Pattern represents a key convention for the codebase
+- Pattern would help an agent understand "how things are done here"
+
+Skip patterns that are:
+- Standard language conventions (e.g., `*.ts` for TypeScript)
+- One-off or incidental (only 1-2 files)
+- Already well-documented by the framework
 
 ### Step 6: Create prime.md
 
@@ -500,6 +524,49 @@ Write `.claude/commands/prime.md` using template above.
 - Read existing CLAUDE.md if it exists
 - Append Code Discovery System section
 - Create CLAUDE.md if it doesn't exist
+
+---
+
+## Validation Phase
+
+Before completing, verify documentation completeness and quality.
+
+### Pattern Coverage Validation
+
+For each file pattern in the analysis:
+- [ ] Pattern is mentioned in at least one domain doc OR has its own pattern guide
+- [ ] Pattern has a clear "home" domain (documented in that domain's "Patterns & Conventions" section)
+- [ ] Task mappings reference how to create files matching this pattern (if applicable)
+
+**If a pattern is orphaned** (no clear home): Either create a domain for it, or document it in the most related existing domain with a note about its cross-cutting nature.
+
+### Domain Clarity Validation
+
+For each domain doc created:
+- [ ] Purpose is describable in one sentence (no conjunctions joining unrelated concepts)
+- [ ] Domain does not significantly overlap with another domain
+- [ ] Key files listed actually exist and are correctly described
+
+**If domains overlap**: Merge them or clarify the boundary in both docs.
+
+### INDEX Quality Validation
+
+The INDEX table is the primary discovery mechanism. Verify:
+
+**Completeness:**
+- [ ] Every domain has exactly one row in the Quick Domain Lookup table
+- [ ] Every significant pattern has a row in the Pattern Guides table
+- [ ] Task mappings cover the common operations for this app type
+
+**Clarity:**
+- [ ] Each "Purpose" cell is one clear sentence (avoid compound descriptions)
+- [ ] Key Files column shows 2-3 representative files (not exhaustive lists)
+- [ ] An agent scanning the table can identify the right domain by name and purpose alone
+
+**No Ambiguity:**
+- [ ] No two domains serve the same purpose
+- [ ] No pattern could reasonably belong to multiple domains without explanation
+- [ ] Task mappings point to specific, existing domains
 
 ---
 
@@ -530,15 +597,31 @@ updated:
 
 Before completing, verify:
 
+**Structural Accuracy:**
 - [ ] Schema YAML is valid YAML syntax
-- [ ] All paths in schema are accurate
-- [ ] INDEX.md tables are complete
-- [ ] Domain docs describe actual structure
-- [ ] Pattern guides use real code examples
+- [ ] All paths in schema exist and are accurate
+- [ ] File counts are reasonable (within ~20% of actual)
+
+**Documentation Quality:**
+- [ ] INDEX.md tables are complete (all domains and patterns have rows)
+- [ ] Domain docs describe actual structure (not aspirational)
+- [ ] Pattern guides use real code examples from this codebase
+- [ ] No placeholder text remains
+
+**Completeness:**
+- [ ] Every domain from analysis has documentation
+- [ ] Every significant pattern has a home (domain doc or pattern guide)
+- [ ] Task mappings cover common operations
+- [ ] All internal links work
+
+**Clarity:**
+- [ ] Domain purposes are single sentences
+- [ ] No overlapping domains
+- [ ] INDEX is scannable (agent can find right domain quickly)
+
+**Files Created:**
 - [ ] prime.md is concise and functional
 - [ ] CLAUDE.md section is properly appended
-- [ ] All internal links work
-- [ ] No placeholder text remains
 
 ---
 

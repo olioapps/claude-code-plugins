@@ -36,6 +36,61 @@ Explore thoroughly but efficiently. Your goal is to produce a **complete, accura
 
 ---
 
+## Domain Granularity Detection
+
+When identifying domains, detect structural boundaries rather than matching known directory names.
+
+### Boundary Types
+
+**Convention Boundaries**
+Sub-directories with different file naming patterns suggest separate domains:
+- If `dir/sub1/` uses `*.foo.ts` and `dir/sub2/` uses `*.bar.ts` → likely separate domains
+- If one sub-directory uses PascalCase and another uses kebab-case → likely separate domains
+- Detect patterns by sampling files, not by assuming what should exist
+
+**Purpose Boundaries**
+Sub-directories with their own organizational markers suggest separate domains:
+- Separate `index.ts` or barrel exports
+- Separate README files
+- Different internal directory structures
+- Distinct export patterns (one exports classes, another exports functions)
+
+**Scale Boundaries**
+Consider splitting when a combined domain would be cognitively unwieldy:
+- Domain contains >2 distinct sub-directories with their own conventions
+- Describing the domain's purpose requires compound sentences ("X and Y and Z")
+- The domain has sub-areas with different task workflows
+
+### Cross-Cutting Pattern Detection
+
+Look for files that span multiple directories and may warrant their own domain:
+- Files sharing a common suffix (e.g., `*Service.ts`, `*Handler.ts`) across 3+ directories
+- A naming convention appearing in >20% of directories
+- Files referenced from multiple unrelated domains (via imports)
+
+**Discover these patterns from the codebase—do not assume what they should be.**
+
+### Package Boundaries (Mono-repos)
+
+In mono-repos, treat each package's internal structure as a separate namespace:
+- `packages/app-a/components/` and `packages/app-b/components/` are separate domains
+- Only create cross-package domains for truly shared code (e.g., `packages/shared/`)
+- Document cross-package dependencies in observations
+
+### When to Split vs Combine
+
+**Split when:**
+- Sub-directories have different file conventions
+- A domain has >3 distinct sub-areas with different purposes
+- The INDEX table row would need more than one sentence to describe purpose
+
+**Combine when:**
+- Directories share identical file patterns and purpose
+- Combined documentation would be <100 lines
+- The directories are tightly coupled (heavy cross-imports)
+
+---
+
 ## Analysis Targets by Application Type
 
 ### Frontend Applications
@@ -154,28 +209,37 @@ Create mental map of:
 
 ### Step 4: Identify Domains
 
-A domain is a logical grouping of related code. Look for:
+A domain is a logical grouping of related code. Identify domains by **observing structure**, not by matching known names.
 
-**Explicit domains** (directories with clear purpose):
-- `auth/`, `authentication/`
-- `users/`, `accounts/`
-- `payments/`, `billing/`
-- `api/`, `routes/`, `controllers/`
-- `components/`, `views/`, `pages/`
-- `services/`, `providers/`
-- `models/`, `entities/`
-- `utils/`, `helpers/`, `lib/`
+**Detection approach:**
 
-**Implicit domains** (patterns within directories):
-- Feature folders in `src/features/`
-- Route groupings in `pages/` or `app/`
-- Service groupings in `services/`
+1. **Start at top-level directories** - Each significant directory is a domain candidate
+2. **Check for boundary signals** - Apply the granularity detection rules above
+3. **Decide split vs combine** - Use structural evidence, not assumptions
 
-For each domain, record:
+**Structural signals that indicate a domain:**
+- Directory has consistent file naming patterns
+- Directory has its own index/barrel file
+- Directory contents serve a single, describable purpose
+- Directory is referenced as a unit by other code
+
+**Structural signals that indicate sub-domains (split needed):**
+- Sub-directories have different file patterns
+- Sub-directories have their own index files
+- Sub-directories serve distinct purposes
+- Sub-directories have different dependency patterns
+
+**What to record for each domain:**
 - Location (path)
-- Purpose (what it handles)
+- Purpose (one clear sentence—if you need "and" to describe it, consider splitting)
 - File count (exact or ~approximate)
 - Key files (entry points, important modules)
+- Confidence: `high` (clear boundaries), `medium` (reasonable inference), `low` (could be split differently)
+
+**Do NOT:**
+- Create domains just because a directory has a common name like "utils"
+- Assume domains based on framework conventions
+- Combine unrelated directories just because they're both "small"
 
 ### Step 5: Detect File Patterns
 
@@ -257,8 +321,9 @@ metadata:
 domains:
   {domain_name}:
     location: {path}
-    purpose: {what this domain handles}
+    purpose: {what this domain handles - ONE sentence}
     count: {file count or ~approximate}
+    confidence: {high|medium|low}
     key_files:
       - {important file 1}
       - {important file 2}
@@ -319,6 +384,9 @@ If significant directories are empty or minimal:
 ❌ Assuming patterns without seeing multiple examples
 ❌ Ignoring config files that reveal important info
 ❌ Over-counting by including generated/vendor files
+❌ Imposing framework-specific domain expectations (e.g., assuming "providers" domain exists because it's React)
+❌ Combining structurally distinct directories to hit an arbitrary domain count
+❌ Using compound sentences to describe domain purpose (signals need to split)
 
 ---
 

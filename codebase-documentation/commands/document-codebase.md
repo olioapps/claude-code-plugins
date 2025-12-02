@@ -66,6 +66,8 @@ Validate that analysis contains:
 - [ ] metadata.type exists
 - [ ] At least one domain defined
 - [ ] At least one file_pattern defined
+- [ ] Each domain has a confidence level (high/medium/low)
+- [ ] Each domain purpose is a single sentence (no compound "and" descriptions)
 
 If validation fails, report error and abort.
 
@@ -97,6 +99,28 @@ Return confirmation of files created.
 {file list}
 ---END---
 ```
+
+### Phase 2.5: Completeness Verification (Optional)
+
+**Skip if analysis had <5 domains.**
+
+Before proceeding, verify the analysis captured structural boundaries appropriately.
+
+**Check for potential missed domains:**
+1. Review directories that were NOT made into domains
+2. For each, verify it's appropriately covered by another domain
+3. Check for file patterns that span multiple directories (cross-cutting concerns)
+
+**Check for over-combined domains:**
+1. Review any domain with `confidence: low` or `confidence: medium`
+2. Review any domain with count >50 files
+3. Verify sub-directories don't have distinct conventions
+
+**If issues found:**
+- Note them in observations for the documentation generator
+- The generator will add them to the INDEX as "potential areas for further documentation"
+
+**This check is about structural boundaries, not specific domain names.**
 
 ### Phase 3: Create Utility Commands
 
@@ -254,6 +278,11 @@ Present final summary to user:
 - Framework: {framework}
 {other stack items}
 
+**Structure Summary:**
+- Domains documented: {count}
+- File patterns covered: {count}
+- Task mappings created: {count}
+
 **Documentation Created**:
 - `.claude/commands/prime.md`
 - `.claude/commands/audit-docs.md`
@@ -265,10 +294,21 @@ Present final summary to user:
 - Updated `CLAUDE.md`
 
 **Domains Documented**:
-{list domains with brief descriptions}
+| Domain | Purpose | Files |
+|--------|---------|-------|
+| {name} | {purpose} | {count} |
+{list all domains}
 
-**Patterns Documented**:
-{list patterns with brief descriptions}
+**Quality Checks**:
+- [x] All structural boundaries captured
+- [x] All patterns mapped to domains
+- [x] INDEX table is complete
+- [x] No overlapping domains
+
+**Potential Gaps** (if any):
+- {List any directories that might warrant separate docs in the future}
+- {List any patterns without clear domain ownership}
+- {List any medium/low confidence domains that may need review}
 
 **Architecture Summary**:
 {from analysis.metadata.architecture}
@@ -277,8 +317,9 @@ Present final summary to user:
 
 **Next Steps**:
 1. Run `/prime` to load codebase context
-2. Use `/audit-docs` periodically to check for drift
-3. Use `/map-domain <name>` for deep dives into specific areas
+2. Review any noted "Potential Gaps" and decide if additional documentation needed
+3. Use `/audit-docs` periodically to check for drift
+4. Use `/map-domain <name>` for deep dives into specific areas
 ```
 
 ## Responsibilities
