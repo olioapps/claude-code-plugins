@@ -21,6 +21,18 @@
       },
       "license": "MIT",
       "category": "productivity"
+    },
+    {
+      "name": "codebase-documentation",
+      "source": "./codebase-documentation",
+      "description": "Generate AI-optimized documentation schema for any codebase. Creates machine-readable maps, domain docs, and pattern guides for efficient AI navigation.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dustin Herboldshimer",
+        "email": "dustin.herboldshimer@olioapps.com"
+      },
+      "license": "MIT",
+      "category": "productivity"
     }
   ]
 }
