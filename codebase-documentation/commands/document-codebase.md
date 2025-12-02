@@ -217,149 +217,7 @@ Before proceeding, verify the analysis captured structural boundaries appropriat
 
 **This check is about structural boundaries, not specific domain names.**
 
-### Phase 3: Create Utility Commands
-
-Write these template files directly:
-
-**`.claude/commands/audit-docs.md`:**
-```markdown
----
-description: Detect documentation drift between schema and actual codebase
-argument-hint: [--verbose] [--auto-fix] [--domain <name>]
----
-
-# Documentation Audit Command
-
-Compare `.claude/docs/codebase-schema.yaml` against actual filesystem structure to detect drift.
-
-## Instructions
-
-### 1. Load Baseline
-Read `.claude/docs/codebase-schema.yaml` to establish expected state.
-
-### 2. Scan Filesystem
-For each domain in the schema:
-- Navigate to the documented location
-- Count files and compare to documented count
-- Verify key files still exist
-- Check for new undocumented directories
-
-### 3. Classify Drift
-
-**TRIVIAL** (Auto-fixable):
-- File counts differ by ±5 or less
-- Can auto-update with `--auto-fix`
-
-**MINOR** (Review needed):
-- File counts differ by >5
-- New directories following existing patterns
-- Needs manual review
-
-**SIGNIFICANT** (Investigation required):
-- Completely undocumented domains
-- Pattern violations
-- Major structural changes
-
-### 4. Generate Report
-
-```markdown
-# Documentation Audit Report
-Generated: {date}
-
-## Summary
-- ✓ X domains up-to-date
-- ⚠ X domains with drift
-
-## Drift Details
-
-### TRIVIAL
-{List items}
-
-### MINOR
-{List items}
-
-### SIGNIFICANT
-{List items}
-
-## Recommended Actions
-1. {Actions to take}
-```
-
-### 5. Auto-fix (if `--auto-fix`)
-Update counts and timestamps for TRIVIAL drift only.
-
-## Examples
-```bash
-/audit-docs
-/audit-docs --verbose
-/audit-docs --auto-fix
-/audit-docs --domain {domain_name}
-```
-```
-
-**`.claude/commands/map-domain.md`:**
-```markdown
----
-description: Deep domain analysis to generate/update documentation
-argument-hint: <domain-name> [--update-schema] [--update-docs]
----
-
-# Domain Mapping Command
-
-Perform deep analysis of a specified domain to generate or update its documentation.
-
-## Instructions
-
-### 1. Validate Domain
-Verify the domain exists in the schema or as a valid path.
-
-### 2. Deep Scan
-Thoroughly explore the domain:
-- Enumerate all files and directories
-- Identify file types and counts
-- Extract exports and dependencies
-- Detect naming conventions
-- Find patterns and anti-patterns
-
-### 3. Generate Domain Map
-
-```markdown
-# Domain Map: {domain_name}
-
-## Summary
-- **Location**: {path}
-- **Files**: X files
-- **Last Modified**: {date}
-
-## Structure
-{Directory tree}
-
-## Key Files
-{Important files with descriptions}
-
-## Patterns Detected
-{Naming, organization, coding patterns}
-
-## Dependencies
-{Internal and external dependencies}
-
-## Recommendations
-{Suggested improvements or documentation updates}
-```
-
-### 4. Update Docs (if flags provided)
-- `--update-schema`: Update codebase-schema.yaml with findings
-- `--update-docs`: Update or create domain documentation
-
-## Examples
-```bash
-/map-domain {domain_name}
-/map-domain {domain_name} --update-docs
-/map-domain {path/to/directory} --update-schema --update-docs
-```
-```
-
-### Phase 4: Report Summary
+### Phase 3: Report Summary
 
 Present final summary to user:
 
@@ -380,8 +238,6 @@ Present final summary to user:
 
 **Documentation Created**:
 - `.claude/commands/prime.md`
-- `.claude/commands/audit-docs.md`
-- `.claude/commands/map-domain.md`
 - `.claude/docs/codebase-schema.yaml`
 - `.claude/docs/INDEX.md`
 - `.claude/docs/domains/` - {count} domain docs
@@ -410,11 +266,16 @@ Present final summary to user:
 
 ---
 
+**Maintenance Commands** (from plugin):
+- `/codebase-documentation:audit-docs` - Check for documentation drift
+- `/codebase-documentation:map-domain <name>` - Deep-dive domain analysis
+- `/codebase-documentation:update-docs` - Refresh documentation intelligently
+
 **Next Steps**:
 1. Run `/prime` to load codebase context
 2. Review any noted "Potential Gaps" and decide if additional documentation needed
-3. Use `/audit-docs` periodically to check for drift
-4. Use `/map-domain <name>` for deep dives into specific areas
+3. Use `/codebase-documentation:audit-docs` periodically to check for drift
+4. Use `/codebase-documentation:update-docs` to refresh docs after major changes
 ```
 
 ## Responsibilities
@@ -422,7 +283,6 @@ Present final summary to user:
 **YOU (handler):**
 - Ask clarification questions (Phase 0)
 - Invoke agents and parse their outputs
-- Create utility command files directly
 - Report final summary
 
 **codebase-analyzer agent:**
@@ -435,7 +295,7 @@ Present final summary to user:
 - Use templates and analysis data
 - Return confirmation of files created
 
-**Agents do NOT create utility commands. You do NOT explore codebase directly.**
+**You do NOT explore codebase directly - agents do the exploration.**
 
 ## Error Handling
 
@@ -451,9 +311,6 @@ Present final summary to user:
 - **Documentation generator fails** → Report error with partial progress
 - **Write permission denied** → "Cannot create files. Check directory permissions."
 - **Partial file creation** → Report which files succeeded/failed
-
-### Phase 3 Errors
-- **Cannot write utility commands** → Report error, documentation is still usable
 
 ### Recovery
 - If any phase partially succeeds, report what was created
@@ -496,9 +353,7 @@ After successful run:
 ```
 .claude/
 ├── commands/
-│   ├── prime.md
-│   ├── audit-docs.md
-│   └── map-domain.md
+│   └── prime.md
 ├── docs/
 │   ├── codebase-schema.yaml
 │   ├── INDEX.md
@@ -511,6 +366,8 @@ After successful run:
 │       └── services.md
 CLAUDE.md (updated)
 ```
+
+**Note:** Utility commands (`audit-docs`, `map-domain`, `update-docs`) are provided by the plugin and invoked via `/codebase-documentation:*` namespace.
 
 ## Troubleshooting
 
@@ -527,7 +384,7 @@ CLAUDE.md (updated)
 
 ### "Domain count seems wrong"
 - Use `--skip-clarification` to bypass auto-detection issues
-- Manually review results with `/map-domain` commands
+- Manually review results with `/codebase-documentation:map-domain <name>` command
 - The analyzer may have combined or split domains based on structural boundaries
 - Report patterns that confused the analyzer for future improvements
 
