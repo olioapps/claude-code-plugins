@@ -12,29 +12,40 @@ A Claude Code plugin marketplace providing custom agents, commands, and workflow
 
 Add this marketplace to your Claude Code settings to install plugins:
 
-1. Open your Claude Code `settings.json` file
-2. Add this marketplace to the `extraKnownMarketplaces` array:
+1. Open your Claude Code `settings.json` file in `~/.claude`
+2. Add this marketplace to the `extraKnownMarketplaces` object:
 
 ```json
 {
-  "extraKnownMarketplaces": [
-    {
-      "name": "olio-plugins",
-      "url": "https://github.com/your-org/claude-code-plugins"
+  "extraKnownMarketplaces": {
+    "olio-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "olio-apps/claude-code-plugins"
+      }
     }
-  ]
+  }
 }
 ```
 
-3. In Claude Code terminal, run:
+3. The marketplace should automatically be added when instantiating Claude Code. If not, in Claude Code terminal, run:
 ```bash
-/plugin marketplace
+/plugin marketplace add olio-plugins
 ```
 
 4. Install plugins from the marketplace:
 ```bash
-/plugin install git-actions
-/plugin enable git-actions
+/plugin install git-actions@olio-plugins
+```
+
+5. A plugin should be enabled by default. If not, run:
+```bash
+/plugin enable git-actions@olio-plugins
+```
+
+6. The plugin should be available as a slash command. To run:
+```bash
+/git-actions
 ```
 
 ## Available Plugins
