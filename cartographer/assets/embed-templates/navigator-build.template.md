@@ -5,7 +5,7 @@ Standalone version for plugin-free operation
 ---
 allowed-tools: Task, Glob, Grep, Read, Write, Edit, Bash, AskUserQuestion
 argument-hint: <spec file>
-description: Execute spec with atlas pattern guidance
+description: Execute spec with atlas pattern guidance (auto-creates implementation branch)
 ---
 
 ## Context
@@ -47,9 +47,34 @@ Check all prerequisite files exist.
 
 If missing → Block or ask to skip.
 
-Check branch matches expected.
+### 4. Setup Implementation Branch
 
-### 4. Load Pattern Guidance
+**Extract from spec:**
+- `{target_branch}` - Implementation Branch
+- `{base_branch}` - Base Branch
+
+**If target branch does NOT exist:**
+1. Verify base branch exists:
+   ```bash
+   git rev-parse --verify {base_branch} 2>/dev/null && echo "EXISTS" || echo "NOT_FOUND"
+   ```
+2. Create target branch from base:
+   ```bash
+   git checkout -b {target_branch} {base_branch}
+   ```
+
+**If target branch EXISTS:**
+```bash
+git checkout {target_branch}
+```
+
+**Report:**
+```
+✅ On branch: {target_branch}
+   Based on: {base_branch}
+```
+
+### 5. Load Pattern Guidance
 
 For each pattern guide:
 - Read conventions
@@ -57,7 +82,7 @@ For each pattern guide:
 
 Build guidance context for implementation.
 
-### 5. Execute Steps
+### 6. Execute Steps
 
 For each step:
 
@@ -69,7 +94,7 @@ For each step:
 
 If step fails: Report error, attempt recovery, ask if blocked.
 
-### 6. Run Validation
+### 7. Run Validation
 
 Execute validation commands:
 ```bash
@@ -81,12 +106,12 @@ Execute validation commands:
 
 **Loop:** Max 3 attempts per validation. Fix and retry.
 
-### 7. Final Verification
+### 8. Final Verification
 
 Check success criteria from spec.
 Review pattern adherence.
 
-### 8. Report
+### 9. Report
 
 ```markdown
 ## Build Complete

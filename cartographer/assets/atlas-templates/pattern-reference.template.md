@@ -1,65 +1,50 @@
 # {{pattern_name}} Pattern
 
-> Applies to: {{applicable_domains}}
+> {{description}}
 
-## Overview
+## File Convention
 
-{{overview}}
-
-## When to Use
-
-{{#each use_cases}}
-- {{this}}
-{{/each}}
-
-## File Structure
-
-```
-{{file_structure}}
-```
-
-## Implementation Steps
-
-{{#each implementation_steps}}
-### {{this.step_number}}. {{this.title}}
-
-{{this.description}}
-
-{{#if this.code_example}}
-```{{this.language}}
-{{this.code_example}}
-```
+**Location:** `{{file_location}}`
+**Naming:** `{{naming_convention}}`
+{{#if test_location}}
+**Tests:** `{{test_location}}`
 {{/if}}
 
+## Template (This Codebase)
+
+```{{language}}
+{{codebase_template}}
+```
+
+## Implementation Checklist
+
+{{#each checklist_items}}
+- [ ] {{this}}
 {{/each}}
 
-## Conventions
+{{#if registration_steps}}
+### Registration
 
-| Convention | Example | Rationale |
-|------------|---------|-----------|
-{{#each conventions}}
-| {{this.convention}} | `{{this.example}}` | {{this.rationale}} |
-{{/each}}
-
-{{#if anti_patterns}}
-## Anti-Patterns
-
-{{#each anti_patterns}}
-❌ **Don't**: {{this.dont}}
-✅ **Do**: {{this.do}}
-
+{{#each registration_steps}}
+- [ ] {{this.action}} in `{{this.file}}`
 {{/each}}
 {{/if}}
 
-{{#if codebase_examples}}
-## Examples in Codebase
+## Reference Implementations
 
 | File | Demonstrates |
-|------|-------------|
-{{#each codebase_examples}}
+|------|--------------|
+{{#each reference_files}}
 | `{{this.file}}` | {{this.demonstrates}} |
 {{/each}}
-{{/if}}
+
+## Validation
+
+```bash
+{{#each validation_commands}}
+{{this}}
+{{/each}}
+```
 
 {{#if related_patterns}}
 ## Related Patterns

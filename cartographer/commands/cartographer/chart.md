@@ -1,15 +1,45 @@
 ---
 allowed-tools: Task, Glob, Grep, Read, Write, Bash(mkdir:*), Bash(test:*), Bash(ls:*), AskUserQuestion
-argument-hint: [project context]
+argument-hint: [--interactive|--auto] [--mode=domains|layers|hybrid] [context]
 description: Generate a complete atlas skill for codebase navigation
 ---
 
 ## Context
 
-Arguments: `/cartographer:chart [CONTEXT]`
+Arguments: `/cartographer:chart [OPTIONS] [CONTEXT]`
+
+**Options:**
+- `--interactive` - (DEFAULT) Guided interview session before deep analysis
+- `--auto` - Skip interview, fully automatic analysis (for CI/automation)
+- `--mode=<mode>` - Pre-select mapping mode (skips that interview question)
+  - `domains` - Feature/directory-based organization (e.g., users/, auth/, payments/)
+  - `layers` - Backend layer-based organization (e.g., controllers/, providers/, daos/)
+  - `hybrid` - Generate both domain and layer views
+
 - **[CONTEXT]** - Optional user-provided context about the project (type, architecture, focus areas)
 
 Current directory: !`pwd`
+
+## Interactive vs Auto Mode
+
+| Mode | When to Use | Flow |
+|------|-------------|------|
+| `--interactive` (default) | First-time charting, unfamiliar codebase | Quick scan → Interview → Deep analysis → Review → Generate |
+| `--auto` | CI/automation, re-charting, known codebase | Full analysis → Generate |
+
+**Interactive mode benefits:**
+- Catches surveyor mistakes early with human validation
+- Identifies critical domains for deeper analysis
+- Discovers custom patterns the surveyor might miss
+- Lets developer choose organization style that matches their mental model
+
+## Mapping Modes
+
+| Mode | Best For | Output Focus |
+|------|----------|--------------|
+| `domains` | Feature-based codebases, frontend SPAs | Groups by business domain |
+| `layers` | Backend APIs, layered architecture | Groups by architectural layer |
+| `hybrid` | Complex codebases, fullstack apps | Provides both views for flexibility |
 
 ## Workflow
 
@@ -38,12 +68,138 @@ If no permission → Error with fix instructions.
 test -f ".atlas-ignore" && echo "FOUND" || echo "NOT_FOUND"
 ```
 
-### 2. Invoke Surveyor Agent
+**Determine mode:**
+- If `--auto` flag → Skip to Step 3 (Full Analysis)
+- If `--interactive` or no flag → Continue to Step 2 (Interview)
+
+---
+
+## Interactive Flow (Default)
+
+### 2. Quick Reconnaissance
+
+**Run surveyor in quick-scan mode:**
+```
+Use the surveyor agent in QUICK_SCAN mode.
+
+Only analyze:
+- Directory structure (top 2 levels)
+- Config files (package.json, tsconfig.json, etc.)
+- Obvious patterns (no deep file reading)
+
+Return preliminary findings in 10-15 seconds.
+```
+
+**Extract from quick scan:**
+- Project type guess
+- Detected organization style (domains vs layers vs hybrid)
+- Preliminary domain list
+- Preliminary layer list (if applicable)
+- Detected file patterns
+
+### 2a. Interview Session
+
+Use AskUserQuestion for each topic. Present quick scan findings and gather corrections.
+
+**Question 1: Organization Style**
+```
+Based on my quick scan, I detected: {detected_style}
+
+Evidence:
+- {evidence_1}
+- {evidence_2}
+
+How would you like the atlas organized?
+```
+Options:
+- "Directory/Domain-based" - Group by business domains (users/, auth/, payments/)
+- "Semantic Layers" - Group by architectural layers (controllers → providers → DAOs)
+- "Hybrid (both views)" - Generate both domain and layer mappings
+- "Other" - Let me explain...
+
+**Question 2: Domain Validation**
+```
+I detected these domains:
+{table of domains with file counts}
+
+Are there any domains I missed or should rename?
+```
+Options:
+- "Looks correct"
+- "Add domains" → Follow-up: "What domains should I add? (comma-separated)"
+- "Remove/rename domains" → Follow-up: "Which domains need adjustment?"
+- "Other"
+
+**Question 3: Critical Domains**
+```
+Which domains are most critical and should receive deeper analysis?
+(These will get more detailed documentation and pattern extraction)
+```
+Options: Multi-select from detected + user-added domains
+
+**Question 4: Custom Patterns**
+```
+Are there any custom naming patterns I should know about?
+
+Examples:
+- "*.handler.ts for background jobs"
+- "*.gateway.ts for external API clients"
+- "{domain}.module.ts for module entry points"
+```
+Options:
+- "No custom patterns"
+- "Yes, let me describe them" → Follow-up text input
+
+**Question 5: Areas to Skip**
+```
+Any directories I should ignore during deep analysis?
+(Besides standard exclusions like node_modules, .git, dist, etc.)
+```
+Options:
+- "No additional exclusions"
+- "Yes, skip these" → Follow-up: "Which directories? (comma-separated)"
+
+### 2b. Compile Interview Results
+
+Build enhanced context for deep analysis:
+```yaml
+interview_results:
+  organization_style: {user_selected}
+  domains:
+    confirmed: [...]
+    added: [...]
+    removed: [...]
+    critical: [...]
+  custom_patterns:
+    - pattern: "*.handler.ts"
+      purpose: "background job handlers"
+  exclusions:
+    - "legacy/"
+    - "deprecated/"
+```
+
+---
+
+## Full Analysis (Both Modes)
+
+### 3. Invoke Surveyor Agent (Deep Analysis)
 
 ```
 Use the surveyor agent to analyze the codebase.
 
-User context (HIGHEST PRIORITY):
+Mode: {--auto → full | --interactive → guided}
+
+{IF interactive, include interview results:}
+Interview context (HIGHEST PRIORITY):
+"""
+Organization style: {user_selected}
+Additional domains to find: {added_domains}
+Critical domains (analyze deeply): {critical_domains}
+Custom patterns: {custom_patterns}
+Directories to skip: {exclusions}
+"""
+
+User context:
 """
 {user_provided_context}
 """
@@ -52,22 +208,45 @@ The agent will return structured analysis in ---ANALYSIS--- format.
 ```
 
 **Parse surveyor output:**
-- Extract metadata, domains, file_patterns, config_files, testing, validation
+- Extract metadata, domains, layers, file_patterns, config_files, testing, validation
 - Validate all required sections present
 - If parsing fails → Report error, suggest retry
 
-### 3. Handle Low Confidence
+### 3a. Draft Review (Interactive Only)
 
-For any element with LOW confidence:
+**If interactive mode, present draft for review:**
 
-**Project type LOW confidence:**
-- Use AskUserQuestion with detected signals and options
-- Apply user selection with HIGH confidence
+```markdown
+## Draft Atlas Preview
 
-**Domain LOW confidence (>30% of domains):**
-- List low-confidence domains
-- Use AskUserQuestion: "Please confirm or adjust these domain classifications"
-- Apply user corrections
+### Project Summary
+- **Type:** {project_type}
+- **Organization:** {organization_style}
+- **Framework:** {framework}
+
+### Domains ({count})
+| Domain | Files | Confidence | Priority |
+|--------|-------|------------|----------|
+{domain_table}
+
+{IF hybrid or layers:}
+### Layers ({count})
+| Layer | Files | Pattern |
+|-------|-------|---------|
+{layer_table}
+
+### Patterns ({count})
+| Pattern | Files | Example |
+|---------|-------|---------|
+{pattern_table}
+
+### Does this look correct?
+```
+
+Options:
+- "Looks good, generate the atlas"
+- "I need to make corrections" → Loop back to specific question
+- "Start over with different settings"
 
 ### 4. Generate Atlas Structure
 
@@ -93,6 +272,68 @@ Using template from `assets/atlas-templates/schema.template.yaml`:
 7. Add validation commands
 
 **Write to:** `.claude/skills/atlas/references/schema.yaml`
+
+### 5a. Generate conventions.yaml
+
+Using template from `assets/atlas-templates/conventions.template.yaml`:
+
+**Purpose:** Machine-readable conventions for `/chore` auto-injection
+
+1. Build keyword index from all pattern keywords
+2. For each pattern from surveyor conventions output:
+   - Extract keywords
+   - Extract file_convention and test_convention
+   - Extract registration steps
+   - Extract validation_commands
+   - List example files
+   - List related patterns
+3. Link to pattern_file in patterns/ directory
+
+**Important:** Only include codebase-specific, objectively extractable facts:
+- ✅ File naming conventions (pattern matching)
+- ✅ Registration locations (import graph analysis)
+- ✅ Validation commands (from package.json scripts)
+- ✅ Actual example file paths
+- ❌ Fragility/freedom levels (human judgment)
+- ❌ Generic anti-patterns (Claude already knows)
+- ❌ "When to use" philosophy
+
+**Write to:** `.claude/skills/atlas/references/conventions.yaml`
+
+### 5b. Generate compositions.yaml
+
+Using template from `assets/atlas-templates/compositions.template.yaml`:
+
+**Purpose:** Multi-pattern task sequences for lifecycle command guidance
+
+1. Use compositions detected by surveyor from git history analysis
+2. Map detected file correlations to composition patterns
+3. Include standard compositions that apply to this codebase type:
+   - Backend API: `add_api_endpoint`, `add_database_table`, `add_background_job`
+   - Frontend SPA: `add_frontend_feature`, `add_page_route`, `add_state_slice`
+   - Fullstack: Both backend and frontend compositions
+4. For each composition, define:
+   - Ordered pattern sequence
+   - Conditions for optional patterns (e.g., "if new table needed")
+   - Validation sequence to run after implementation
+
+**Composition structure:**
+```yaml
+compositions:
+  {composition_id}:
+    description: "{what this composition accomplishes}"
+    patterns:
+      - pattern: {pattern_id}
+        order: 1
+        condition: "always|if {condition}"
+    validation_sequence:
+      - "{validation command 1}"
+      - "{validation command 2}"
+```
+
+**Include detected_correlations section** if surveyor found file change patterns from git history.
+
+**Write to:** `.claude/skills/atlas/references/compositions.yaml`
 
 ### 6. Generate SKILL.md
 
@@ -132,6 +373,22 @@ For each detected pattern type:
 
 **Write to:** `.claude/skills/atlas/references/patterns/{pattern}.md`
 
+### 8b. Generate Technology Observations
+
+Using template from `assets/atlas-templates/observations.template.md`:
+
+**Purpose:** Document observed technologies with evidence (not decision rationale)
+
+1. Use technology_observations from surveyor output
+2. For each observation, include:
+   - Category (State Management, API Layer, Database, etc.)
+   - Technology name
+   - Evidence from codebase (specific files, patterns, counts)
+   - Notable configuration or patterns if relevant
+3. Include explicit note that decision rationale is NOT extractable
+
+**Write to:** `.claude/skills/atlas/references/observations.md`
+
 ### 9. Create .atlas-ignore (if not exists)
 
 If no .atlas-ignore found in pre-flight:
@@ -143,6 +400,9 @@ If no .atlas-ignore found in pre-flight:
 **Check all files created:**
 - SKILL.md exists and has content
 - schema.yaml is valid YAML
+- conventions.yaml is valid YAML
+- compositions.yaml is valid YAML
+- observations.md exists and has content
 - All referenced files exist
 - No broken links in SKILL.md
 
@@ -162,11 +422,16 @@ If no .atlas-ignore found in pre-flight:
 - Project type: {type} (confidence: {confidence})
 - Domains identified: {count}
 - File patterns detected: {count}
+- Pattern conventions extracted: {count}
+- Compositions defined: {count}
 - Reference files created: {count}
 
 **Files created:**
 - `.claude/skills/atlas/SKILL.md`
 - `.claude/skills/atlas/references/schema.yaml`
+- `.claude/skills/atlas/references/conventions.yaml`
+- `.claude/skills/atlas/references/compositions.yaml`
+- `.claude/skills/atlas/references/observations.md`
 {list of domain references}
 {list of pattern guides}
 

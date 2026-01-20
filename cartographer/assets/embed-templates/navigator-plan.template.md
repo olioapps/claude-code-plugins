@@ -3,15 +3,16 @@ Embedded Navigator Command: plan
 Standalone version for plugin-free operation
 -->
 ---
-allowed-tools: Task, Glob, Grep, Read, Write, Bash(git branch:*), Bash(git status:*), Bash(test:*), Bash(mkdir:*), AskUserQuestion
-argument-hint: <task description>
+allowed-tools: Task, Glob, Grep, Read, Write, Bash(git branch:*), Bash(git status:*), Bash(git rev-parse:*), Bash(test:*), Bash(mkdir:*), AskUserQuestion
+argument-hint: <task description> [--base-branch <branch>]
 description: Create implementation spec with atlas context
 ---
 
 ## Context
 
-Arguments: `/spec-plan <TASK_DESCRIPTION>`
+Arguments: `/spec-plan <TASK_DESCRIPTION> [OPTIONS]`
 - **<task>** - Description of the feature, chore, or bug fix
+- **--base-branch <branch>** - Branch to base implementation on (default: current branch)
 
 Current directory: !`pwd`
 Current branch: !`git branch --show-current`
@@ -60,11 +61,20 @@ Extract domains, patterns, validation commands.
 
 ### 4. Capture Git Context
 
-```bash
-git branch --show-current  # base branch
-```
+**Determine base branch:**
+- If `--base-branch` argument provided → use that value
+- Otherwise → use current branch:
+  ```bash
+  git branch --show-current  # base_branch
+  ```
 
-Generate branch: `{type}/{description}`
+**Verify base branch exists:**
+```bash
+git rev-parse --verify {base_branch} 2>/dev/null && echo "EXISTS" || echo "NOT_FOUND"
+```
+If not found → Error: "Base branch '{base_branch}' does not exist"
+
+**Generate target branch:** `{type}/{description}`
 
 ### 5. Generate Spec
 
@@ -154,4 +164,5 @@ Execute validation commands.
 - Steps: {count}
 
 **Next:** `/spec-build specs/{filename}.md`
+- Build will automatically create and checkout the implementation branch
 ```

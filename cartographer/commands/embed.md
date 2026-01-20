@@ -29,7 +29,57 @@ Current directory: !`pwd`
 - Default: `.claude/commands/`
 - Custom: Use --output value
 
-### 2. Pre-flight Checks
+### 2. Discover Plugin Templates
+
+**CRITICAL: You must locate the cartographer plugin's embed templates before proceeding.**
+
+The templates are NOT in the current working directory. Search these locations in order:
+
+**Search Pattern 1 - User plugins:**
+```
+~/.claude/plugins/*/cartographer/assets/embed-templates/*.template.md
+```
+
+**Search Pattern 2 - Marketplace plugins:**
+```
+~/.claude/plugins/marketplaces/*/cartographer/assets/embed-templates/*.template.md
+```
+
+**Search Pattern 3 - Project-local plugins:**
+```
+.claude/plugins/*/cartographer/assets/embed-templates/*.template.md
+```
+
+**Discovery Steps:**
+1. Use Glob to search each pattern until you find templates
+2. Store the discovered path as `{template_dir}` for use in step 5 (Export Commands)
+3. Verify you found these required templates:
+   - `cartographer-chart.template.md`
+   - `cartographer-rechart.template.md`
+   - `cartographer-calibrate.template.md`
+   - `cartographer-explore.template.md`
+   - `cartographer-where.template.md`
+   - `navigator-plan.template.md`
+   - `navigator-build.template.md`
+   - `navigator-review.template.md`
+
+**If --agents flag, also verify:**
+   - `agent-surveyor.template.md`
+   - `agent-auditor.template.md`
+
+**If templates not found:**
+```
+❌ Could not locate cartographer plugin templates.
+
+Searched:
+- ~/.claude/plugins/*/cartographer/
+- ~/.claude/plugins/marketplaces/*/cartographer/
+- .claude/plugins/*/cartographer/
+
+The cartographer plugin may not be installed correctly.
+```
+
+### 3. Pre-flight Checks
 
 **Check output directory:**
 ```bash
@@ -53,18 +103,18 @@ Options:
 5. Abort
 ```
 
-### 3. Create Output Directory
+### 4. Create Output Directory
 
 ```bash
 mkdir -p {output_dir}
 ```
 
-### 4. Export Commands
+### 5. Export Commands
 
 **Load and transform templates:**
 
 For each command to export:
-1. Read template from `assets/embed-templates/`
+1. Read template from `{template_dir}` (discovered in step 2)
 2. Apply any necessary transformations
 3. Write to output directory
 
@@ -84,7 +134,7 @@ For each command to export:
 - `agent-surveyor.md` → Include in relevant commands
 - `agent-auditor.md` → Include in relevant commands
 
-### 5. Inline Agent Definitions
+### 6. Inline Agent Definitions
 
 **If --agents flag:**
 
@@ -102,7 +152,7 @@ For commands that use agents, inline the agent definition:
 
 This makes commands self-contained without needing the agents/ directory.
 
-### 6. Transform for Standalone Use
+### 7. Transform for Standalone Use
 
 **Adjustments needed for embedded commands:**
 
@@ -121,7 +171,7 @@ This makes commands self-contained without needing the agents/ directory.
 3. **Update tool permissions if needed:**
    - Embedded commands may need broader permissions
 
-### 7. Create Help File
+### 8. Create Help File
 
 **Generate embedded help:**
 ```markdown
@@ -147,7 +197,7 @@ Commands work the same as plugin versions:
 - Original plugin: cartographer/
 ```
 
-### 8. Update CLAUDE.md (Optional)
+### 9. Update CLAUDE.md (Optional)
 
 **If CLAUDE.md exists, offer to add command references:**
 
@@ -172,7 +222,7 @@ The following commands are available in this repository:
 See `.claude/commands/help.md` for full documentation.
 ```
 
-### 9. Report Results
+### 10. Report Results
 
 ```markdown
 ## Commands Embedded Successfully

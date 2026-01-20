@@ -40,10 +40,18 @@ test -f "{spec_file}" && echo "EXISTS" || echo "NOT_FOUND"
 - Extract success criteria
 - Extract pattern guides referenced
 - Extract expected files (new and modified)
+- Extract composition ID if present
 
 **Load atlas files:**
 - `.claude/skills/atlas/references/schema.yaml`
+- `.claude/skills/atlas/references/conventions.yaml` - Pattern conventions
 - Relevant pattern guides from spec
+
+**Extract from conventions.yaml for each pattern in spec:**
+- File conventions (verify files created at correct locations)
+- Test conventions (verify tests created)
+- Registration steps (verify registration completed)
+- Validation commands (run pattern-specific checks)
 
 **Get implementation changes:**
 ```bash
@@ -87,24 +95,40 @@ For each file in spec "New Files" / "Existing Files":
 
 ### 4. Review Against Patterns
 
-**For each pattern guide referenced:**
+**For each pattern in spec, check against conventions.yaml:**
 
-1. Read the pattern guide
-2. Check implementation against conventions
-3. Check for anti-patterns
+1. **File Convention Check:**
+   - Expected location: `{file_convention from conventions.yaml}`
+   - Actual file created: {path} → ✅/❌
+
+2. **Test Convention Check:**
+   - Expected test location: `{test_convention}`
+   - Test file exists: ✅/❌
+
+3. **Registration Check:**
+   - For each registration step in conventions.yaml:
+   - {action} in `{file}` → ✅/❌
+
+4. **Pattern Guide Adherence:**
+   - Read pattern guide from `patterns/{pattern_id}.md`
+   - Check implementation against checklist items
+   - Check against codebase template
 
 ```markdown
 ### Pattern Adherence: {pattern_name}
 
-**Conventions checked:**
-- [ ] {Convention 1} - ✅/❌ {status}
-- [ ] {Convention 2} - ✅/❌ {status}
+**Conventions checked (from conventions.yaml):**
+- [ ] File at correct location (`{file_convention}`) - ✅/❌
+- [ ] Test at correct location (`{test_convention}`) - ✅/❌
+- [ ] Registration completed in `{registration_file}` - ✅/❌
 
-**Anti-patterns detected:**
-- {anti-pattern if found, or "None"}
+**Checklist items (from pattern guide):**
+- [ ] {Checklist item 1} - ✅/❌
+- [ ] {Checklist item 2} - ✅/❌
 
-**Examples of good adherence:**
-- `{file}:{line}` - {what it does well}
+**Reference implementation comparison:**
+- Compared against: `{example_file from conventions.yaml}`
+- Follows established patterns: ✅/❌
 
 **Areas for improvement:**
 - `{file}:{line}` - {suggestion}

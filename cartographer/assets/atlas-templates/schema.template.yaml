@@ -6,6 +6,7 @@
 metadata:
   project: {{project_name}}
   type: {{project_type}}
+  organization_style: {{organization_style}}
   stack:
     language: {{stack.language}}
     version: '{{stack.version}}'
@@ -58,6 +59,30 @@ domains:
 
 {{/each}}
 
+{{#if layers}}
+# Architectural layers (for layer-based or hybrid organization)
+layers:
+{{#each layers}}
+  {{this.name}}:
+    location: {{this.location}}
+    file_pattern: '{{this.file_pattern}}'
+    count: {{this.count}}
+    purpose: {{this.purpose}}
+    key_files:
+{{#each this.key_files}}
+      - {{this}}
+{{/each}}
+{{#if this.domains_served}}
+    domains_served:
+{{#each this.domains_served}}
+      - {{this}}
+{{/each}}
+{{/if}}
+    documentation: {{this.documentation}}
+
+{{/each}}
+{{/if}}
+
 file_patterns:
 {{#each file_patterns}}
   {{this.name}}:
@@ -108,3 +133,9 @@ validation:
     - name: {{this.name}}
       command: {{this.command}}
 {{/each}}
+
+# References to companion files for lifecycle command integration
+companion_files:
+  conventions: references/conventions.yaml
+  compositions: references/compositions.yaml
+  observations: references/observations.md

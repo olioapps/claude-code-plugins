@@ -1,7 +1,7 @@
 ---
 allowed-tools: Task, Glob, Grep, Read, Write, Edit, Bash, AskUserQuestion
 argument-hint: <spec file>
-description: Execute spec with atlas pattern guidance
+description: Execute spec with atlas pattern guidance (auto-creates implementation branch)
 ---
 
 ## Context
@@ -42,12 +42,20 @@ If not found → Error: "Spec file not found: {spec_file}"
 - Parse all sections
 - Extract prerequisites, steps, validation commands
 - Identify domains and patterns referenced
+- Extract composition ID if present in spec
 
 **Load atlas files:**
 - `.claude/skills/atlas/SKILL.md`
 - `.claude/skills/atlas/references/schema.yaml`
+- `.claude/skills/atlas/references/conventions.yaml` - Pattern conventions
 - Relevant domain references (from spec "Atlas Context" section)
 - Relevant pattern guides (from spec "Pattern Guides" section)
+
+**Extract from conventions.yaml for each pattern in spec:**
+- File conventions (where to create files)
+- Test conventions (where to create tests)
+- Registration steps (where to wire up new code)
+- Validation commands (how to verify each pattern)
 
 ### 3. Verify Prerequisites
 
@@ -71,40 +79,88 @@ Options:
 3. Abort
 ```
 
-**Check branch:**
+### 4. Setup Implementation Branch
+
+**Extract branch info from spec:**
+- `{target_branch}` - Implementation Branch from spec
+- `{base_branch}` - Base Branch from spec
+
+**Check if target branch exists:**
+```bash
+git rev-parse --verify {target_branch} 2>/dev/null && echo "EXISTS" || echo "NOT_FOUND"
+```
+
+**If target branch does NOT exist:**
+1. Verify base branch exists:
+   ```bash
+   git rev-parse --verify {base_branch} 2>/dev/null && echo "EXISTS" || echo "NOT_FOUND"
+   ```
+   If base branch not found → Error: "Base branch '{base_branch}' does not exist"
+
+2. Create target branch from base branch:
+   ```bash
+   git checkout -b {target_branch} {base_branch}
+   ```
+
+**If target branch EXISTS:**
+```bash
+git checkout {target_branch}
+```
+
+**Verify on correct branch:**
 ```bash
 git branch --show-current
 ```
+Must match `{target_branch}` before proceeding.
 
-If not on expected branch:
+**Report branch status:**
 ```
-⚠️ Expected branch: {target_branch}
-   Current branch: {current_branch}
-
-Options:
-1. Create/switch to expected branch
-2. Continue on current branch
-3. Abort
+✅ On branch: {target_branch}
+   Based on: {base_branch}
 ```
 
-### 4. Load Pattern Guidance
+### 5. Load Pattern Guidance
+
+**For each pattern in spec, load from conventions.yaml:**
+```yaml
+{pattern_id}:
+  file_convention: "{where to create file}"
+  test_convention: "{where to create test}"
+  registration:
+    - file: "{registration file}"
+      action: "{what to do}"
+  validation_commands:
+    - "{command 1}"
+    - "{command 2}"
+  example_files:
+    - "{reference implementation to study}"
+```
 
 **For each pattern guide referenced in spec:**
-- Read full pattern guide
-- Extract conventions to follow
-- Note anti-patterns to avoid
+- Read full pattern guide from `patterns/{pattern_id}.md`
+- Extract codebase-specific template
+- Extract implementation checklist
 
 **Build guidance context:**
 ```
-When implementing, follow these patterns:
+When implementing {pattern_name}:
 
-{pattern_name}:
-- Convention: {convention}
-- Example: {example}
-- Anti-pattern: {avoid}
+File Conventions (from conventions.yaml):
+- Create file at: {file_convention}
+- Create test at: {test_convention}
+
+Registration Steps:
+- {action} in {file}
+
+Reference Implementation:
+- Study: {example_file}
+
+Checklist (from pattern guide):
+- [ ] {checklist item 1}
+- [ ] {checklist item 2}
 ```
 
-### 5. Execute Steps
+### 6. Execute Steps
 
 **For each step in spec:**
 
@@ -115,20 +171,31 @@ When implementing, follow these patterns:
 
 2. **Load relevant context:**
    - Read files mentioned in step
-   - Apply pattern guidance
+   - Apply pattern guidance from conventions.yaml
+   - Study example_files if implementing new pattern
 
 3. **Implement changes:**
    - Follow spec instructions precisely
-   - Adhere to pattern conventions
+   - Use file_convention from conventions.yaml for new files
+   - Use test_convention for test files
+   - Adhere to pattern conventions from pattern guide
    - Write clean, documented code
 
-4. **Verify step completion:**
-   - Check expected outcome
-   - Run quick validation if applicable
+4. **Complete registration steps:**
+   - For each registration in conventions.yaml for this pattern
+   - Perform {action} in {file}
 
-5. **Report progress:**
+5. **Verify step completion:**
+   - Check expected outcome
+   - Run pattern-specific validation_commands from conventions.yaml
+   - Fix any issues before proceeding
+
+6. **Report progress:**
    ```
    ✅ Step {N} complete: {brief summary}
+   - Files created: {list}
+   - Registration: {completed steps}
+   - Validation: {pass/fail}
    ```
 
 **If step fails:**
@@ -136,7 +203,7 @@ When implementing, follow these patterns:
 - Attempt recovery if possible
 - Ask user how to proceed if blocked
 
-### 6. Run Validation
+### 7. Run Validation
 
 **Execute validation commands from spec:**
 
@@ -165,7 +232,7 @@ When implementing, follow these patterns:
 - Report each attempt result
 - If still failing after 3 attempts, ask user
 
-### 7. Final Verification
+### 8. Final Verification
 
 **Check success criteria from spec:**
 - [ ] Criterion 1 - verified how
@@ -176,7 +243,7 @@ When implementing, follow these patterns:
 - Did implementation follow documented patterns?
 - Any deviations? (document if intentional)
 
-### 8. Report Results
+### 9. Report Results
 
 ```markdown
 ## Build Complete

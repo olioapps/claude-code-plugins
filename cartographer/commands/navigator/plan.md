@@ -1,13 +1,14 @@
 ---
 allowed-tools: Task, Glob, Grep, Read, Write, Bash(git branch:*), Bash(git status:*), Bash(test:*), Bash(mkdir:*), AskUserQuestion
-argument-hint: <task description>
+argument-hint: <task description> [--base-branch <branch>]
 description: Create implementation spec with atlas context
 ---
 
 ## Context
 
-Arguments: `/navigator:plan <TASK_DESCRIPTION>`
+Arguments: `/navigator:plan <TASK_DESCRIPTION> [OPTIONS]`
 - **<task>** - Description of the feature, chore, or bug fix to plan
+- **--base-branch <branch>** - Branch to base implementation on (default: current branch)
 
 Current directory: !`pwd`
 Current branch: !`git branch --show-current`
@@ -48,12 +49,25 @@ mkdir -p specs
 **Read atlas files:**
 - `.claude/skills/atlas/SKILL.md` - Domain and pattern routers
 - `.claude/skills/atlas/references/schema.yaml` - Full structure
+- `.claude/skills/atlas/references/conventions.yaml` - Pattern conventions and keywords
+- `.claude/skills/atlas/references/compositions.yaml` - Multi-pattern sequences
 
-**Extract:**
+**Extract from schema.yaml:**
 - Domain list with purposes
 - File patterns
 - Task mappings
 - Validation commands
+
+**Extract from conventions.yaml:**
+- `keyword_index` - Maps task keywords to pattern IDs
+- Pattern-specific file conventions
+- Pattern-specific validation commands
+- Registration steps per pattern
+
+**Extract from compositions.yaml:**
+- Multi-pattern task sequences (e.g., `add_api_endpoint`)
+- Pattern ordering and conditions
+- Validation sequences
 
 ### 3. Analyze Task
 
@@ -62,6 +76,16 @@ mkdir -p specs
 - Affected domains (match keywords to atlas)
 - Required patterns (match task to pattern router)
 - Complexity estimate: small / medium / large
+
+**Use conventions.yaml keyword_index:**
+- Extract keywords from task description
+- Look up each keyword in `keyword_index` to find pattern IDs
+- Example: "add user endpoint" → keywords ["endpoint", "user"] → patterns ["controllers", "providers"]
+
+**Use compositions.yaml for multi-pattern tasks:**
+- Check if matched patterns suggest a composition
+- Example: patterns ["controllers", "providers", "data_access"] → composition "add_api_endpoint"
+- Extract ordered pattern sequence with conditions
 
 **Use atlas domain router:**
 - Match task keywords to domains
@@ -88,11 +112,20 @@ mkdir -p specs
 
 ### 5. Capture Git Context
 
-```bash
-git branch --show-current  # base_branch
-```
+**Determine base branch:**
+- If `--base-branch` argument provided → use that value
+- Otherwise → use current branch:
+  ```bash
+  git branch --show-current  # base_branch
+  ```
 
-**Generate branch name:**
+**Verify base branch exists:**
+```bash
+git rev-parse --verify {base_branch} 2>/dev/null && echo "EXISTS" || echo "NOT_FOUND"
+```
+If not found → Error: "Base branch '{base_branch}' does not exist"
+
+**Generate target branch name:**
 - Format: `{type}/{concise-description}`
 - Types: `feature/`, `chore/`, `fix/`, `refactor/`
 - Example: `feature/add-user-profile-page`
@@ -153,14 +186,32 @@ Compare implementation branch against this branch when reviewing changes.
 ### Relevant Domains
 {List domains from atlas with paths}
 
+### Pattern Sequence
+{IF composition matched from compositions.yaml:}
+**Composition:** `{composition_id}` - {composition_description}
+
+| Order | Pattern | Condition | File Convention |
+|-------|---------|-----------|-----------------|
+| 1 | {pattern_id} | {condition} | `{file_convention from conventions.yaml}` |
+| 2 | {pattern_id} | {condition} | `{file_convention from conventions.yaml}` |
+| ... | ... | ... | ... |
+
+{IF no composition matched:}
+**Patterns involved:** {list of matched patterns}
+
+### File Conventions (from conventions.yaml)
+{For each pattern involved:}
+**{pattern_id}:**
+- File: `{file_convention}`
+- Test: `{test_convention}`
+
+### Registration Steps (from conventions.yaml)
+{For each pattern with registration:}
+- [ ] {action} in `{file}`
+
 ### Pattern Guides
 Review these pattern guides before implementing:
-{List relevant patterns with links}
-
-**Critical conventions for this task**:
-- {Convention 1 from pattern guide}
-- {Convention 2 from pattern guide}
-- {Convention 3 from pattern guide}
+{List relevant patterns with links to patterns/*.md}
 
 ---
 
@@ -169,8 +220,8 @@ Review these pattern guides before implementing:
 ### Existing Files
 {List files with brief explanation of relevance}
 
-### New Files
-{List files that will be created}
+### New Files (derived from file conventions)
+{List files that will be created based on conventions.yaml file_convention}
 
 ---
 
@@ -199,16 +250,26 @@ Review these pattern guides before implementing:
 
 **Execute ALL commands to confirm completion with zero regressions.**
 
+### Global Validation (from schema.yaml)
 ```bash
 {working_dir_command}
-
 {type_check_command}
-
-{test_command}
-
 {lint_command}
-
 {build_command}
+```
+
+### Pattern-Specific Validation (from conventions.yaml)
+{For each pattern involved, list its validation_commands:}
+**{pattern_id}:**
+```bash
+{validation_command_1}
+{validation_command_2}
+```
+
+{IF composition matched, include validation_sequence:}
+### Composition Validation Sequence
+```bash
+{validation_sequence from compositions.yaml}
 ```
 
 **Expected Result**: All commands complete successfully with no errors.
@@ -230,6 +291,8 @@ Review these pattern guides before implementing:
 **Summary:**
 - Task type: {type}
 - Domains involved: {list}
+- Composition matched: {composition_id or "None"}
+- Pattern sequence: {ordered list of patterns}
 - Pattern guides referenced: {list}
 - Implementation steps: {count}
 - Estimated files to modify: {count}
@@ -240,8 +303,8 @@ Review these pattern guides before implementing:
 
 **Next steps:**
 1. Review spec for accuracy
-2. Create branch: `git checkout -b {target_branch}`
-3. Run `/navigator:build specs/{filename}.md` to execute
+2. Run `/navigator:build specs/{filename}.md` to execute
+   - Build will automatically create and checkout the implementation branch
 ```
 
 ---
