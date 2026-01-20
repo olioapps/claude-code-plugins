@@ -53,10 +53,12 @@ mkdir -p specs
 - `.claude/skills/atlas/references/compositions.yaml` - Multi-pattern sequences
 
 **Extract from schema.yaml:**
-- Domain list with purposes
+- Domain list with purposes and key_files
 - File patterns
-- Task mappings
-- Validation commands
+- Task mappings (common workflows → entry points)
+- Validation commands (build, test, lint)
+- Integrations (external services with config locations)
+- Config files inventory
 
 **Extract from conventions.yaml:**
 - `keyword_index` - Maps task keywords to pattern IDs
@@ -67,7 +69,14 @@ mkdir -p specs
 **Extract from compositions.yaml:**
 - Multi-pattern task sequences (e.g., `add_api_endpoint`)
 - Pattern ordering and conditions
+- Prerequisites (required patterns/files)
 - Validation sequences
+
+**Load pattern guides for matched patterns:**
+For each pattern identified, read `.claude/skills/atlas/references/patterns/{pattern}.md`:
+- Critical conventions (must-follow rules)
+- Anti-patterns (common mistakes to avoid)
+- Template code (starting point for implementation)
 
 ### 3. Analyze Task
 
@@ -110,7 +119,33 @@ mkdir -p specs
 - Files that might be affected
 - Dependencies to consider
 
-### 5. Capture Git Context
+### 5. Detect Prerequisites
+
+**From Atlas compositions.yaml:**
+- Check if matched composition has `prerequisites` section
+- Extract required patterns that must exist
+- Extract required files that must exist
+
+**From Atlas domain key_files:**
+- For each domain involved, check if key_files exist
+- Missing key_files indicate incomplete domain setup
+
+**From Atlas integrations:**
+- If task involves an integration, verify config exists
+- Check integration usage_locations are present
+
+**Prerequisite verification commands:**
+```bash
+# For each required file
+test -f "{required_file}" && echo "✅ {required_file}" || echo "❌ MISSING: {required_file}"
+```
+
+**If prerequisites missing:**
+- List missing files/patterns in spec Prerequisites section
+- Mark as blocking if critical to implementation
+- Suggest prerequisite tasks if applicable
+
+### 6. Capture Git Context
 
 **Determine base branch:**
 - If `--base-branch` argument provided → use that value
@@ -130,7 +165,7 @@ If not found → Error: "Base branch '{base_branch}' does not exist"
 - Types: `feature/`, `chore/`, `fix/`, `refactor/`
 - Example: `feature/add-user-profile-page`
 
-### 6. Generate Spec
+### 7. Generate Spec
 
 **Create spec file:** `specs/{task-slug}.md`
 
@@ -143,10 +178,22 @@ If not found → Error: "Base branch '{base_branch}' does not exist"
 **⚠️ This task has dependencies that must be completed first.**
 
 ### Required Files
-{List files that MUST exist before implementation}
+{List files from atlas domain key_files and composition prerequisites}
+- [ ] `{file_path}` - {why_needed}
+
+### Required Patterns
+{List patterns from composition prerequisites}
+- [ ] `{pattern}` - {why_needed}
 
 ### Prerequisite Tasks
-{List other specs/tasks that must be completed first}
+{IF blocking tickets/tasks needed:}
+- [ ] {description_of_prerequisite_task}
+
+### Verification
+Run these commands to verify prerequisites:
+```bash
+{verification_commands_from_prerequisite_detection}
+```
 
 {IF no prerequisites:}
 **None** - This task has no dependencies and can be implemented immediately.
@@ -212,6 +259,26 @@ Compare implementation branch against this branch when reviewing changes.
 ### Pattern Guides
 Review these pattern guides before implementing:
 {List relevant patterns with links to patterns/*.md}
+
+### Pattern Context (extracted from pattern guides)
+
+{For each pattern involved:}
+#### {pattern_id}
+
+**Critical Conventions:**
+1. {convention_1 from pattern guide}
+2. {convention_2 from pattern guide}
+3. {convention_3 from pattern guide}
+
+**Anti-Patterns to Avoid:**
+| Don't | Do Instead | Why |
+|-------|------------|-----|
+| {anti_pattern} | {correct_approach} | {reason} |
+
+**Template:**
+```{language}
+{minimal_template_from_pattern_guide}
+```
 
 ---
 
@@ -281,7 +348,7 @@ Review these pattern guides before implementing:
 {Optional: Additional context, gotchas, helpful tips}
 ```
 
-### 7. Report Results
+### 8. Report Results
 
 ```markdown
 ## Spec Created

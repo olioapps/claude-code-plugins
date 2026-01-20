@@ -59,31 +59,72 @@ If not found → Error: "Spec file not found: {spec_file}"
 
 ### 3. Verify Prerequisites
 
+**Phase 0: Run spec verification commands:**
+If spec has a "Prerequisites > Verification" section with commands:
+```bash
+{verification_commands_from_spec}
+```
+- Parse output for ❌ MISSING indicators
+- Collect all failures before reporting
+
 **Check prerequisite files:**
 ```bash
 test -f "{prerequisite_file}" && echo "✅ EXISTS" || echo "❌ MISSING"
 ```
 
-**If any missing:**
+**Check prerequisite patterns (from spec):**
+For each required pattern, verify key files exist in expected locations.
+
+**If ANY prerequisites missing:**
 ```
 ❌ Prerequisites not met
 
-Missing files:
-- {file1}
-- {file2}
+Missing Files:
+- {file1} - {why_needed}
+- {file2} - {why_needed}
 
-Cannot proceed until prerequisites are resolved.
-Options:
-1. Complete prerequisite tasks first
-2. Skip prerequisites (risky)
-3. Abort
+Missing Patterns:
+- {pattern} - {why_needed}
+
+⛔ Cannot proceed until prerequisites are resolved.
 ```
+
+**Use AskUserQuestion:**
+```
+How would you like to proceed?
+1. Abort - I'll complete prerequisites first
+2. Skip prerequisites (risky - may cause implementation failures)
+3. Show me what's missing in detail
+```
+
+If user selects "Abort" → **EXIT** with clear message about what to complete first.
+If user selects "Skip" → Continue with warning logged.
 
 ### 4. Setup Implementation Branch
 
 **Extract branch info from spec:**
 - `{target_branch}` - Implementation Branch from spec
 - `{base_branch}` - Base Branch from spec
+
+**Check current git state:**
+```bash
+git status --porcelain
+git branch --show-current
+```
+
+**Handle dirty working directory:**
+
+| Current Branch | Working Dir | Action |
+|---------------|-------------|--------|
+| target_branch | clean | Proceed |
+| target_branch | dirty | Ask: "Uncommitted changes detected. Stash, commit, or continue?" |
+| other branch | clean | Checkout/create target branch |
+| other branch | dirty | Ask: "Uncommitted changes on {current}. Stash, commit, or abort?" |
+
+**If dirty and user chooses stash:**
+```bash
+git stash push -m "navigator-build: auto-stash before switching to {target_branch}"
+```
 
 **Check if target branch exists:**
 ```bash
@@ -97,7 +138,13 @@ git rev-parse --verify {target_branch} 2>/dev/null && echo "EXISTS" || echo "NOT
    ```
    If base branch not found → Error: "Base branch '{base_branch}' does not exist"
 
-2. Create target branch from base branch:
+2. Check if base branch is current (warn if stale):
+   ```bash
+   git log {base_branch}..origin/{base_branch} --oneline 2>/dev/null | head -5
+   ```
+   If commits exist → Warn: "⚠️ Base branch may be behind remote. Consider `git pull` first."
+
+3. Create target branch from base branch:
    ```bash
    git checkout -b {target_branch} {base_branch}
    ```
@@ -117,6 +164,7 @@ Must match `{target_branch}` before proceeding.
 ```
 ✅ On branch: {target_branch}
    Based on: {base_branch}
+   Working directory: clean
 ```
 
 ### 5. Load Pattern Guidance
@@ -205,32 +253,83 @@ Checklist (from pattern guide):
 
 ### 7. Run Validation
 
+**Validation protocol with retry limits:**
+
+For each validation command, use this retry loop:
+
+```
+validation_results = []
+
+for each command in [type_check, test, lint, build]:
+    attempt = 1
+    max_attempts = 3
+
+    while attempt <= max_attempts:
+        result = run(command)
+
+        if result.success:
+            log("✅ {command}: PASSED (attempt {attempt})")
+            validation_results.append({command, "passed", attempt})
+            break
+
+        if attempt < max_attempts:
+            log("⚠️ {command}: FAILED (attempt {attempt}/{max_attempts})")
+            log("   Error: {result.error}")
+            log("   Attempting fix...")
+            attempt_fix(result.error)
+            attempt += 1
+        else:
+            log("❌ {command}: FAILED after {max_attempts} attempts")
+            validation_results.append({command, "failed", max_attempts, result.error})
+```
+
 **Execute validation commands from spec:**
 
 ```bash
+# Type check
 {type_check_command}
 ```
-- If fails → Report errors, attempt fixes, re-run
+- If fails → Analyze type errors, attempt fixes, re-run (max 3)
 
 ```bash
+# Tests
 {test_command}
 ```
-- If fails → Report failing tests, attempt fixes, re-run
+- If fails → Analyze failing tests, attempt fixes, re-run (max 3)
 
 ```bash
+# Lint
 {lint_command}
 ```
-- If fails → Apply lint fixes, re-run
+- If fails → Apply auto-fix if available, re-run (max 3)
 
 ```bash
+# Build
 {build_command}
 ```
-- If fails → Report build errors, attempt fixes
+- If fails → Analyze build errors, attempt fixes, re-run (max 3)
 
-**Validation loop:**
-- Max 3 attempts per validation step
-- Report each attempt result
-- If still failing after 3 attempts, ask user
+**After all validations complete:**
+```
+Validation Summary:
+- Type check: ✅ Pass (1 attempt)
+- Tests: ⚠️ Pass (2 attempts)
+- Lint: ✅ Pass (1 attempt)
+- Build: ❌ FAILED (3 attempts) - {error_summary}
+```
+
+**If any validation failed after max attempts:**
+```
+⚠️ Some validations failed after maximum retries.
+
+Failed:
+- {command}: {error_summary}
+
+Options:
+1. Continue anyway (not recommended)
+2. Abort and fix manually
+3. Show detailed error logs
+```
 
 ### 8. Final Verification
 
@@ -258,10 +357,12 @@ Checklist (from pattern guide):
 {list files created/modified}
 
 ### Validation Results
-- Type check: ✅ Pass
-- Tests: ✅ Pass ({count} tests)
-- Lint: ✅ Pass
-- Build: ✅ Pass
+| Command | Status | Attempts | Notes |
+|---------|--------|----------|-------|
+| Type check | ✅ Pass | 1 | |
+| Tests | ✅ Pass | 2 | Fixed failing test in {file} |
+| Lint | ✅ Pass | 1 | |
+| Build | ✅ Pass | 1 | |
 
 ### Success Criteria
 {list each criterion with ✅/❌}

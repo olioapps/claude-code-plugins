@@ -2,6 +2,10 @@
 
 > {{description}}
 
+## Purpose
+
+{{purpose}}
+
 ## File Convention
 
 **Location:** `{{file_location}}`
@@ -9,6 +13,28 @@
 {{#if test_location}}
 **Tests:** `{{test_location}}`
 {{/if}}
+
+## Structure
+
+```
+{{directory_structure}}
+```
+
+## Critical Conventions
+
+<!-- Top 3-5 must-follow rules extracted from codebase analysis -->
+
+{{#each critical_conventions}}
+{{@index}}. **{{this.name}}**: {{this.explanation}}
+{{/each}}
+
+## Anti-Patterns
+
+| Don't | Do Instead | Why |
+|-------|------------|-----|
+{{#each anti_patterns}}
+| {{this.dont}} | {{this.do_instead}} | {{this.why}} |
+{{/each}}
 
 ## Template (This Codebase)
 

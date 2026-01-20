@@ -171,6 +171,59 @@ Determine: framework, locations, patterns, coverage configuration.
 
 Find commands for type checking, linting, testing, and building from package.json scripts, Makefile, or common patterns.
 
+### Step 8b: Detect External Integrations
+
+Scan for external service integrations:
+
+**Detection methods:**
+1. **Package.json/requirements.txt:** Look for SDK packages (aws-sdk, stripe, twilio, sendgrid, etc.)
+2. **Import grep:** Search for imports of integration SDKs
+3. **Config files:** Look for integration-specific configs (e.g., `stripe.config.ts`, `aws.config.ts`)
+
+**For each integration detected:**
+- Name (e.g., "Stripe", "AWS S3", "SendGrid")
+- Purpose (inferred from usage context)
+- Config location (where credentials/settings are configured)
+- Usage locations (files that import/use the integration)
+
+### Step 8c: Detect Async/Queue Infrastructure
+
+Scan for async job processing infrastructure:
+
+**Detection signals:**
+| Type | Package Signals | File Patterns |
+|------|-----------------|---------------|
+| BullMQ | bullmq, bull | *.queue.ts, *.worker.ts, *.processor.ts |
+| SQS | @aws-sdk/client-sqs, aws-sdk | *.handler.ts, sqs*.ts |
+| RabbitMQ | amqplib, rabbitmq | *.consumer.ts, *.publisher.ts |
+| Redis Queue | ioredis, redis | *.job.ts, queue/*.ts |
+
+**For each queue detected:**
+- Name (from config or file name)
+- Handler location (file that processes queue messages)
+- Purpose (inferred from handler code or name)
+
+### Step 8d: Detect Task Mappings
+
+Identify common developer workflows and their entry points:
+
+**Standard task mappings to detect:**
+
+| Task | Detection Signal | Entry Point |
+|------|-----------------|-------------|
+| add_api_endpoint | controllers/ or routes/ exist | First controller/route directory |
+| add_database_table | migrations/ or models/ exist | Migrations directory |
+| add_background_job | workers/ or jobs/ exist | Workers directory |
+| add_authorization | auth/ or permissions/ exist | Auth directory |
+| add_frontend_component | components/ exists | Components directory |
+| add_api_integration | integrations/ or external/ exist | Integrations directory |
+
+**For each task mapping:**
+- ID (snake_case identifier)
+- Description (what the task accomplishes)
+- Entry point (directory/file to start)
+- Patterns (list of patterns typically involved)
+
 ### Step 9: Extract Pattern Conventions
 
 For each file pattern detected in Step 5, extract codebase-specific conventions:
@@ -324,9 +377,37 @@ file_patterns:
     purpose: {what these files do}
 
 config_files:
-  {filename}:
-    path: {full path}
-    purpose: {what it configures}
+  entry_point: {main file - e.g., src/index.ts, main.py}
+  package_manager: {npm|yarn|pnpm|pip|poetry|cargo}
+  build_command: {from scripts}
+  test_command: {from scripts}
+  lint_command: {from scripts}
+  env_template: {.env.example|.env.template|none}
+  files:
+    - path: {full path}
+      purpose: {what it configures}
+
+task_mappings:
+  - id: {add_api_endpoint|add_database_table|etc.}
+    description: {what this task accomplishes}
+    entry_point: {directory or file to start}
+    patterns:
+      - {pattern1}
+      - {pattern2}
+
+integrations:
+  - name: {Stripe|AWS S3|SendGrid|etc.}
+    purpose: {what it's used for}
+    config_location: {path to config}
+    usage_locations:
+      - {file that uses it}
+
+async_infrastructure:
+  type: {bullmq|sqs|rabbitmq|redis|none}
+  queues:
+    - name: {queue name}
+      handler: {handler file path}
+      purpose: {what it processes}
 
 testing:
   framework: {Jest|pytest|etc. or "Not detected"}

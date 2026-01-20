@@ -1,7 +1,7 @@
 ---
-allowed-tools: Task, Glob, Grep, Read, Bash(git diff:*), Bash(git log:*), Bash(git status:*), AskUserQuestion
+allowed-tools: Task, Glob, Grep, Read, Write, Bash(git diff:*), Bash(git log:*), Bash(git status:*), Bash(mkdir:*), AskUserQuestion
 argument-hint: <spec file>
-description: Review implementation against spec and patterns
+description: Review implementation against spec and patterns (outputs JSON for iteration)
 ---
 
 ## Context
@@ -109,10 +109,23 @@ For each file in spec "New Files" / "Existing Files":
    - For each registration step in conventions.yaml:
    - {action} in `{file}` → ✅/❌
 
-4. **Pattern Guide Adherence:**
-   - Read pattern guide from `patterns/{pattern_id}.md`
-   - Check implementation against checklist items
-   - Check against codebase template
+4. **Critical Conventions Check (from pattern guide):**
+   - For each convention listed in pattern guide:
+   - Verify implementation follows the rule
+   - Classify violations by severity
+
+5. **Anti-Pattern Check (from pattern guide):**
+   - For each anti-pattern listed in pattern guide:
+   - Verify implementation does NOT exhibit the anti-pattern
+   - Flag any violations as tech_debt or blocker
+
+**Severity Classification:**
+
+| Severity | Definition | Action Required |
+|----------|------------|-----------------|
+| `blocker` | Breaks functionality, security issue, fails validation | Must fix before PR |
+| `tech_debt` | Works but violates patterns/conventions | Should fix, can defer |
+| `skippable` | Style preferences, minor improvements | Optional |
 
 ```markdown
 ### Pattern Adherence: {pattern_name}
@@ -122,16 +135,20 @@ For each file in spec "New Files" / "Existing Files":
 - [ ] Test at correct location (`{test_convention}`) - ✅/❌
 - [ ] Registration completed in `{registration_file}` - ✅/❌
 
-**Checklist items (from pattern guide):**
-- [ ] {Checklist item 1} - ✅/❌
-- [ ] {Checklist item 2} - ✅/❌
+**Critical conventions (from pattern guide):**
+- [ ] {convention_1} - ✅/❌ [{severity if violated}]
+- [ ] {convention_2} - ✅/❌ [{severity if violated}]
+
+**Anti-patterns avoided (from pattern guide):**
+- [ ] Does NOT {anti_pattern_1} - ✅/❌ [{severity if violated}]
+- [ ] Does NOT {anti_pattern_2} - ✅/❌ [{severity if violated}]
 
 **Reference implementation comparison:**
 - Compared against: `{example_file from conventions.yaml}`
 - Follows established patterns: ✅/❌
 
-**Areas for improvement:**
-- `{file}:{line}` - {suggestion}
+**Issues found:**
+- `{file}:{line}` - {description} [**{severity}**]
 ```
 
 ### 5. Code Quality Review
@@ -193,16 +210,29 @@ For each file in spec "New Files" / "Existing Files":
 
 ---
 
+### Issue Summary by Severity
+
+| Severity | Count | Requires Action |
+|----------|-------|-----------------|
+| 🔴 Blocker | {count} | Must fix before PR |
+| 🟡 Tech Debt | {count} | Should fix |
+| 🟢 Skippable | {count} | Optional |
+
+---
+
 ### Detailed Findings
+
+#### 🔴 Blockers (must fix)
+{list blocker issues with file:line references}
+
+#### 🟡 Tech Debt (should fix)
+{list tech_debt issues with file:line references}
+
+#### 🟢 Skippable (optional)
+{list skippable issues}
 
 #### ✅ Successes
 {list things done well}
-
-#### ⚠️ Suggestions
-{list improvement suggestions}
-
-#### ❌ Issues
-{list problems that should be fixed}
 
 ---
 
@@ -253,6 +283,80 @@ Suggested commit message:
 2. {critical issue 2}
 
 Consider running `/navigator:build {spec_file}` again after fixes.
+```
+
+### 8. Write JSON Output
+
+**Create reviews directory:**
+```bash
+mkdir -p specs/reviews
+```
+
+**Write JSON file:** `specs/reviews/{spec-name}-review.json`
+
+```json
+{
+  "success": {true if no blockers, false otherwise},
+  "spec_file": "{spec_file}",
+  "base_branch": "{base_branch}",
+  "current_branch": "{current_branch}",
+  "timestamp": "{ISO-8601 timestamp}",
+  "scores": {
+    "spec_compliance": "{A/B/C/F}",
+    "pattern_adherence": "{A/B/C/F}",
+    "code_quality": "{A/B/C/F}",
+    "validation": "{A/B/C/F}",
+    "overall": "{A/B/C/F}"
+  },
+  "issue_counts": {
+    "blocker": {count},
+    "tech_debt": {count},
+    "skippable": {count}
+  },
+  "issues": [
+    {
+      "issue_number": 1,
+      "description": "{description}",
+      "location": "{file}:{line}",
+      "severity": "blocker|tech_debt|skippable",
+      "resolution": "{how to fix}",
+      "pattern_violated": "{pattern_id or null}"
+    }
+  ],
+  "validation_results": [
+    {
+      "command": "{command}",
+      "status": "passed|failed",
+      "error": "{error message or null}"
+    }
+  ],
+  "success_criteria": [
+    {
+      "criterion": "{description}",
+      "met": true|false,
+      "evidence": "{how verified}"
+    }
+  ]
+}
+```
+
+**Report JSON output:**
+```
+📄 Review JSON written to: specs/reviews/{spec-name}-review.json
+```
+
+### 9. Iteration Loop Support
+
+**If blockers exist, suggest iteration:**
+```
+🔄 Iteration cycle available:
+
+1. Fix blockers listed above
+2. Run `/navigator:build {spec_file}` to re-implement
+3. Run `/navigator:review {spec_file}` to re-review
+
+Or use the JSON output programmatically:
+  specs/reviews/{spec-name}-review.json
 ```
 
 ---
