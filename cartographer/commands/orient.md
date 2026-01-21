@@ -1,7 +1,7 @@
 ---
 allowed-tools: Read, Write, Bash(test:*), AskUserQuestion
 argument-hint: [--reset]
-description: Set up CLAUDE.md with atlas section markers
+description: Add minimal atlas awareness to CLAUDE.md (for human readers)
 ---
 
 ## Context
@@ -41,46 +41,23 @@ test -f ".claude/skills/atlas/SKILL.md" && echo "EXISTS" || echo "NOT_FOUND"
 
 ### 3. Generate Atlas Section
 
-**Read atlas SKILL.md:**
-```bash
-test -f ".claude/skills/atlas/SKILL.md"
-```
-
-**Create atlas section:**
+**Create atlas section (minimal - no duplication of SKILL.md content):**
 
 ```markdown
 <!-- atlas:start -->
 ## Codebase Navigation
 
-This project uses an atlas skill for AI-optimized codebase navigation.
+This project has an **atlas** for AI-optimized codebase navigation.
 
-### Quick Reference
+**Usage:** Run `/atlas` or ask "where is X?" - skill triggers handle the rest.
 
-Run `/atlas` or ask "where is X?" to get instant routing to relevant code.
-
-### Atlas Location
-
-- **SKILL.md**: `.claude/skills/atlas/SKILL.md`
-- **Schema**: `.claude/skills/atlas/references/schema.yaml`
-- **References**: `.claude/skills/atlas/references/`
-
-### Key Domains
-
-{domain_summary_table}
-
-### Maintenance
-
-- **Check health**: `/cartographer:calibrate`
-- **Update atlas**: `/cartographer:rechart`
-- **Deep dive**: `/cartographer:explore <domain>`
-
+**Maintenance:** `/cartographer:calibrate` (check) · `/cartographer:rechart` (update)
 <!-- atlas:end -->
 ```
 
-**Generate domain summary from schema:**
-- Read schema.yaml
-- Create table with top domains (up to 10)
-- Include path and purpose
+**Note:** Do NOT include domain tables or detailed references here. That information lives in:
+- `.claude/skills/atlas/SKILL.md` - Routing tables (auto-discovered by Claude)
+- `.claude/skills/atlas/references/schema.yaml` - Full structure
 
 ### 4. Update CLAUDE.md
 
@@ -140,29 +117,20 @@ This may cause issues. Options:
 ## CLAUDE.md Updated
 
 **Action:** {Created | Updated | Reset}
+**Atlas section:** Lines {start}-{end}
 
-**Atlas section location:** Lines {start}-{end}
-
-**Content added:**
-- Domain summary table ({count} domains)
-- Quick reference instructions
-- Maintenance commands
-
-**Next steps:**
-- Review CLAUDE.md for accuracy
-- Add project-specific instructions as needed
-- Commit changes when ready
+The atlas section is intentionally minimal. Full navigation data lives in:
+- `.claude/skills/atlas/SKILL.md` (auto-discovered)
+- `.claude/skills/atlas/references/schema.yaml`
 ```
 
 **If atlas not found:**
 ```markdown
-## CLAUDE.md Updated (Partial)
+## CLAUDE.md Updated (Placeholder)
 
 **Note:** Atlas not found at `.claude/skills/atlas/`
 
-Added placeholder atlas section. To complete setup:
-1. Run `/cartographer:chart` to generate atlas
-2. Run `/cartographer:orient` again to populate domain table
+Added placeholder section. Run `/cartographer:chart` to generate atlas.
 ```
 
 ---
@@ -197,9 +165,8 @@ This allows:
 
 **YOU (handler):**
 - Check CLAUDE.md state
-- Generate atlas section from current atlas
-- Insert/update section preserving other content
+- Add/update minimal atlas awareness section
+- Preserve all other CLAUDE.md content
 - Handle conflicts interactively
-- Report results
 
-**You manage CLAUDE.md integration. Keep changes minimal and targeted.**
+**Keep it minimal.** The atlas section is for human readers. Claude discovers the skill automatically via `.claude/skills/atlas/SKILL.md`.
