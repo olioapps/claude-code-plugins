@@ -41,23 +41,15 @@ test -f ".claude/skills/atlas/SKILL.md" && echo "EXISTS" || echo "NOT_FOUND"
 
 ### 3. Generate Atlas Section
 
-**Create atlas section (minimal - no duplication of SKILL.md content):**
+**Create atlas section:**
 
 ```markdown
 <!-- atlas:start -->
-## Codebase Navigation
-
-This project has an **atlas** for AI-optimized codebase navigation.
-
-**Usage:** Run `/atlas` or ask "where is X?" - skill triggers handle the rest.
-
-**Maintenance:** `/cartographer:calibrate` (check) · `/cartographer:rechart` (update)
+This project has an atlas skill at `.claude/skills/atlas/` for codebase navigation.
 <!-- atlas:end -->
 ```
 
-**Note:** Do NOT include domain tables or detailed references here. That information lives in:
-- `.claude/skills/atlas/SKILL.md` - Routing tables (auto-discovered by Claude)
-- `.claude/skills/atlas/references/schema.yaml` - Full structure
+That's it. Claude auto-discovers the skill. This marker is for humans and for `/cartographer:calibrate` to detect setup state.
 
 ### 4. Update CLAUDE.md
 
