@@ -115,7 +115,7 @@ mkdir -p {output_dir}
 
 For each command to export:
 1. Read template from `{template_dir}` (discovered in step 2)
-2. Apply any necessary transformations
+2. Apply project-specific transformations (see below)
 3. Write to output directory
 
 **Cartographer commands:**
@@ -133,6 +133,118 @@ For each command to export:
 **Agent definitions (if --agents):**
 - `agent-surveyor.md` → Include in relevant commands
 - `agent-auditor.md` → Include in relevant commands
+
+### 5a. Generate Project-Specific Pattern Mapping (Navigator commands only)
+
+**CRITICAL**: Before writing `spec-plan.md`, generate a concrete keyword-to-pattern mapping from the project's atlas.
+
+#### Step 5a.1: Read Project Schema
+
+```bash
+test -f ".claude/skills/atlas/references/schema.yaml" && echo "EXISTS" || echo "NOT_FOUND"
+```
+
+**If schema exists**, read it and extract:
+- `documentation.patterns` - list of pattern file paths
+- `task_mappings` - mapping of task types to files and patterns
+
+#### Step 5a.2: Build Keyword Mapping
+
+For each pattern in `documentation.patterns`:
+1. Read the pattern file from `.claude/skills/atlas/references/{pattern_path}`
+2. Extract the "When to Use This Pattern" section
+3. Identify 4-6 keywords that would trigger this pattern
+4. Extract 2-3 critical conventions from "Key Conventions" section
+
+**Generate a project-specific mapping table:**
+
+```markdown
+## Project Pattern Mapping
+
+| Keywords | Pattern Guide | Critical Conventions |
+|----------|---------------|---------------------|
+| {keywords from pattern 1} | `{pattern_path_1}` | {2-3 key rules} |
+| {keywords from pattern 2} | `{pattern_path_2}` | {2-3 key rules} |
+| ... | ... | ... |
+
+### Task Type Mapping
+
+| Task Mapping Key | Relevant Pattern |
+|------------------|------------------|
+| {task_mapping_key_1} | `{matching_pattern}` |
+| {task_mapping_key_2} | `{matching_pattern}` |
+```
+
+#### Step 5a.3: Inject Into Template
+
+In the `navigator-plan.template.md` output:
+- Replace the generic "Example mapping generation" section with the actual project-specific mapping
+- Replace example conventions with real conventions from the project's pattern files
+
+**Example transformation:**
+
+Template has:
+```markdown
+**Example mapping generation:**
+If schema.yaml contains:
+...
+Generate a mental map like:
+| Keywords | Pattern Guide |
+|----------|---------------|
+| "api", "endpoint", "fetch"... | `patterns/rtk_query.md` |
+```
+
+Replace with:
+```markdown
+**Project Pattern Mapping:**
+
+This project's atlas defines the following patterns:
+
+| Keywords | Pattern Guide | Critical Conventions |
+|----------|---------------|---------------------|
+| "api", "endpoint", "RTK Query", "fetch", "cache" | `patterns/rtk_query.md` | Use `.api.ts` suffix; Import shared `baseQuery`; Use tag-based cache invalidation |
+| "slice", "redux", "state", "reducer" | `patterns/redux_slices.md` | Register in store.ts; Use createSlice from RTK |
+| "component", "atom", "molecule" | `patterns/atomic_design.md` | Use Backrs* prefix; Co-locate Storybook stories |
+
+### Task Mappings
+
+| Task | Pattern |
+|------|---------|
+| `add_api_endpoint` | `patterns/rtk_query.md` |
+| `add_redux_slice` | `patterns/redux_slices.md` |
+| `create_reusable_component` | `patterns/atomic_design.md` |
+```
+
+#### Step 5a.4: Inject Validation Commands
+
+Also inject the project's actual validation commands from `schema.validation`:
+
+Template has:
+```markdown
+## Validation Commands
+{working_dir from schema.validation.working_dir, if specified}
+{For each command in schema.validation.commands:}
+```
+
+Replace with actual commands:
+```markdown
+## Validation Commands
+
+**Execute ALL commands to confirm completion with zero regressions.**
+
+```bash
+# From {working_dir}:
+cd {working_dir}
+
+# {command_1.name}
+{command_1.command}
+
+# {command_2.name}
+{command_2.command}
+```
+
+**Expected Result**: All commands complete successfully with no errors.
+```
 
 ### 6. Inline Agent Definitions
 
