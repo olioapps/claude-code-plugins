@@ -50,7 +50,7 @@ This project has an atlas skill at `.claude/skills/atlas/` for codebase navigati
 <!-- atlas:end -->
 ```
 
-That's it. Claude auto-discovers the skill. This marker is for humans and for `/cartographer:calibrate` to detect setup state.
+That's it. Claude auto-discovers the skill. This marker is for humans and for `/cartographer:health` to detect setup state.
 
 ### 4. Update CLAUDE.md
 

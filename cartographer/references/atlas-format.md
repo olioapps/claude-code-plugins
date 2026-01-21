@@ -125,15 +125,18 @@ Each pattern in `patterns` section should have:
 - [ ] No broken internal links
 - [ ] observations.md follows template structure
 
-## Health Commands
+## Health Command
 
 | Command | Purpose |
 |---------|---------|
-| `/cartographer:validate` | Validate atlas format and structure |
-| `/cartographer:calibrate` | Detect drift from codebase |
-| `/cartographer:calibrate-parallel` | Fast parallel drift detection |
+| `/cartographer:health` | Comprehensive atlas health check (drift, structure, quality) |
 
-Both validate and calibrate should pass for a healthy atlas.
+Use flags to run specific checks:
+- `--drift-only` - Only check drift (paths exist, file counts match)
+- `--structure-only` - Only validate structure (links valid, required fields)
+- `--skip-quality` - Skip quality review (faster)
+- `--fix` - Auto-fix simple issues
+- `--strict` - Fail on warnings
 
 ## Version History
 

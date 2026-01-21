@@ -196,7 +196,7 @@ Return detailed analysis for enriched documentation.
 
 **Next steps:**
 - Run `/cartographer:explore {related_domain}` to explore connected areas
-- Run `/cartographer:calibrate` to verify overall atlas health
+- Run `/cartographer:health` to verify overall atlas health
 ```
 
 ---

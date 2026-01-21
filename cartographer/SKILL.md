@@ -47,14 +47,12 @@ Navigator commands use the atlas to:
 |---------|-------|-------------|
 | `/cartographer:chart` | sonnet | Generate complete atlas |
 | `/cartographer:rechart` | sonnet | Incrementally update atlas |
-| `/cartographer:calibrate` | sonnet | Detect drift between atlas and codebase |
-| `/cartographer:calibrate-parallel` | sonnet | Parallel drift detection (faster for large codebases) |
-| `/cartographer:validate` | sonnet | Validate atlas structure and references |
+| `/cartographer:health` | sonnet | Comprehensive atlas health check (drift, structure, quality) |
 | `/cartographer:explore <domain>` | sonnet | Deep-dive into domain |
 | `/cartographer:where <query>` | haiku | Quick path lookup |
 | `/cartographer:capture` | haiku | Capture knowledge to atlas |
 | `/cartographer:orient` | haiku | Set up CLAUDE.md awareness |
-| `/cartographer:embed` | haiku | Export commands for plugin-free use |
+| `/cartographer:embed` | sonnet | Export commands for plugin-free use |
 | `/cartographer:help` | haiku | Display usage guide |
 
 ### Navigator Commands
@@ -64,7 +62,6 @@ Navigator commands use the atlas to:
 | `/navigator:plan <task>` | sonnet | Create implementation spec with atlas context |
 | `/navigator:build <spec>` | sonnet | Execute spec with pattern guidance |
 | `/navigator:review <spec>` | sonnet | Review implementation against spec/patterns |
-| `/navigator:iterate <element>` | sonnet | Iterative UI improvement with feedback |
 
 ## Workflows
 
@@ -86,7 +83,7 @@ Navigator commands use the atlas to:
 ### Atlas Maintenance
 
 ```
-/cartographer:calibrate          # Check for drift
+/cartographer:health             # Check drift, structure, and quality
 /cartographer:rechart            # Update stale areas
 /cartographer:capture --pattern  # Add discovered patterns
 ```
@@ -150,6 +147,6 @@ This creates standalone command files that maintain full fidelity with plugin co
 | Issue | Solution |
 |-------|----------|
 | Atlas not found | `/cartographer:chart` |
-| Atlas outdated | `/cartographer:calibrate` then `/cartographer:rechart` |
+| Atlas outdated | `/cartographer:health` then `/cartographer:rechart` |
 | Pattern violations | Check atlas anti-patterns, update if needed |
 | Missing domain | `/cartographer:explore <path>` to enrich |

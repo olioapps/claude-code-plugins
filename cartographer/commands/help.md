@@ -17,7 +17,7 @@ Generate AI-optimized codebase navigation (`/atlas` skills) plus spec-driven dev
 
 1. **Generate atlas:** `/cartographer:chart`
 2. **Use atlas:** `/atlas` (auto-invoked when asking "where is X?")
-3. **Keep fresh:** `/cartographer:calibrate` → `/cartographer:rechart`
+3. **Keep fresh:** `/cartographer:health` → `/cartographer:rechart`
 
 ## Commands
 
@@ -32,9 +32,10 @@ Generate AI-optimized codebase navigation (`/atlas` skills) plus spec-driven dev
 ### Atlas Health
 | Command | Description |
 |---------|-------------|
-| `/cartographer:validate` | Check atlas structure/format |
-| `/cartographer:calibrate` | Check drift from codebase |
-| `/cartographer:review` | Check atlas quality/content |
+| `/cartographer:health` | Check drift, structure, and quality |
+| `/cartographer:health --drift-only` | Only check drift |
+| `/cartographer:health --structure-only` | Only check structure |
+| `/cartographer:health --fix` | Auto-fix simple issues |
 
 ### Atlas Usage
 | Command | Description |
@@ -49,24 +50,16 @@ Generate AI-optimized codebase navigation (`/atlas` skills) plus spec-driven dev
 | `/navigator:plan <task>` | Create spec with atlas context |
 | `/navigator:build <spec>` | Execute spec with patterns |
 | `/navigator:review <spec>` | Review with agents (default) |
-| `/navigator:iterate <element>` | Iterative UI improvement |
-
-## Atlas Health Checks
-
-Run all three for a healthy atlas:
-1. `/cartographer:validate` - Structure OK?
-2. `/cartographer:calibrate` - Matches codebase?
-3. `/cartographer:review` - Quality sufficient?
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
 | Atlas not found | `/cartographer:chart` |
-| Atlas stale | `/cartographer:calibrate` then `/cartographer:rechart` |
+| Atlas stale | `/cartographer:health` then `/cartographer:rechart` |
 | Wrong project type | Re-run `/cartographer:chart` with context |
 | Navigator blocked | Ensure atlas exists |
-| Generic anti-patterns | `/cartographer:review --fix` |
+| Generic anti-patterns | `/cartographer:health --fix` |
 | Incomplete patterns | `/cartographer:explore --pattern <id>` |
 
 ## More Info

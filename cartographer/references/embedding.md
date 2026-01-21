@@ -6,17 +6,28 @@
 
 The `/cartographer:embed` command exports commands for plugin-free operation. These embedded versions should work identically to their plugin counterparts.
 
-## What Gets Templated
+## Dynamic Generation
 
-Only these elements are templated (replaced during embed):
+Embedded commands are **generated at runtime** from plugin source files. No separate template files are maintained - the plugin commands ARE the source of truth.
 
-| Template Variable | Purpose | Example |
-|-------------------|---------|---------|
-| Command invocation paths | Shorter names without namespace | `/cartographer:chart` → `/chart` |
-| Plugin-relative paths | Resolve to embedded locations | `agents/surveyor.md` → inline or adjacent |
-| Project-specific mappings | Injected from atlas schema | Pattern keyword mappings |
+### Benefits of Dynamic Generation
 
-## What Does NOT Get Templated
+1. **Single source of truth** - No templates to maintain separately
+2. **Always in sync** - Embedding always reflects current plugin state
+3. **Reduced maintenance** - ~21 fewer files to maintain
+4. **Consistency guaranteed** - Transformation rules applied uniformly
+
+## What Gets Transformed
+
+Only these elements are transformed during embed:
+
+| Pattern | Replacement | Example |
+|---------|-------------|---------|
+| `/cartographer:X` | `/X` | `/cartographer:chart` → `/chart` |
+| `/navigator:X` | `/spec-X` | `/navigator:plan` → `/spec-plan` |
+| `agents/review/X.md` | `agents/X.md` | Agent path flattening |
+
+## What Does NOT Get Transformed
 
 Everything else is copied verbatim:
 
@@ -25,43 +36,9 @@ Everything else is copied verbatim:
 - Error handling
 - Output formats
 - Tool permissions
-- Agent definitions
+- Agent definitions (content unchanged, only paths adjusted)
 
-## Template Structure
-
-### Command Templates
-
-Command templates are nearly identical to source commands:
-
-```markdown
-<!--
-Embedded Cartographer Command: {command_name}
-Source: cartographer/commands/{path}/{command}.md
-Standalone version for plugin-free operation
--->
-{EXACT CONTENT FROM SOURCE COMMAND}
-```
-
-The only changes:
-1. Header comment noting source
-2. Command invocation paths updated (e.g., `/cartographer:chart` → `/chart`)
-3. References to other commands updated to embedded names
-
-### Agent Templates
-
-Agent templates are identical to source agents:
-
-```markdown
-<!--
-Embedded Agent: {agent_name}
-Source: cartographer/agents/{agent}.md
--->
-{EXACT CONTENT FROM SOURCE AGENT}
-```
-
-No changes except the header comment.
-
-## Embedding Modes
+## Embedded Structure
 
 ### Standalone Embedding (Default)
 
@@ -71,72 +48,67 @@ Commands are self-contained files that work without the plugin:
 .claude/commands/
 ├── chart.md
 ├── rechart.md
-├── calibrate.md
+├── health.md
 ├── explore.md
 ├── where.md
-├── validate.md
 ├── capture.md
 ├── spec-plan.md
 ├── spec-build.md
 ├── spec-review.md
-└── spec-iterate.md
+└── agents/
+    ├── surveyor.md
+    ├── auditor.md
+    ├── import-analyzer.md
+    ├── pattern-enforcer.md
+    ├── architecture-auditor.md
+    ├── anti-pattern-detector.md
+    ├── convention-checker.md
+    └── atlas-validator.md
 ```
 
-### With Agents Inlined (`--agents`)
+### Agent Export (`--agents`)
 
-Agent definitions are appended to commands that use them:
-
-```markdown
-{command content}
-
----
-
-## Embedded Agent: Surveyor
-
-{full surveyor.md content}
-```
-
-This makes commands fully self-contained without needing separate agent files.
+When `--agents` flag is used, agent definitions are exported to an `agents/` subdirectory. Commands reference these via relative paths.
 
 ## Why Full Fidelity Matters
 
 1. **Reliability**: Embedded commands behave exactly like plugin commands
-2. **Maintainability**: One source of truth - update source, regenerate templates
+2. **Maintainability**: One source of truth - update source, re-embed
 3. **Debugging**: Issues in embedded mode reproduce in plugin mode
 4. **Trust**: Users know what they're getting
 
-## Template Generation
+## Command Mapping
 
-Templates should be generated from source files, not manually maintained:
+| Plugin Command | Embedded Command | Purpose |
+|----------------|------------------|---------|
+| `/cartographer:chart` | `/chart` | Generate atlas |
+| `/cartographer:rechart` | `/rechart` | Update atlas |
+| `/cartographer:health` | `/health` | Health check (drift + structure + quality) |
+| `/cartographer:explore` | `/explore` | Deep domain analysis |
+| `/cartographer:where` | `/where` | Quick path lookup |
+| `/cartographer:capture` | `/capture` | Capture patterns |
+| `/navigator:plan` | `/spec-plan` | Create implementation spec |
+| `/navigator:build` | `/spec-build` | Execute spec |
+| `/navigator:review` | `/spec-review` | Review implementation |
 
-```bash
-# Future: automated template generation
-/cartographer:generate-templates
-```
+## Agent Mapping
 
-Until automation exists, templates must be manually kept in sync with sources.
+| Plugin Agent | Embedded Path |
+|--------------|---------------|
+| `agents/surveyor.md` | `agents/surveyor.md` |
+| `agents/auditor.md` | `agents/auditor.md` |
+| `agents/import-analyzer.md` | `agents/import-analyzer.md` |
+| `agents/review/pattern-enforcer.md` | `agents/pattern-enforcer.md` |
+| `agents/review/architecture-auditor.md` | `agents/architecture-auditor.md` |
+| `agents/review/anti-pattern-detector.md` | `agents/anti-pattern-detector.md` |
+| `agents/review/convention-checker.md` | `agents/convention-checker.md` |
+| `agents/review/atlas-validator.md` | `agents/atlas-validator.md` |
 
 ## Validation
 
-When updating commands or agents:
+After embedding, verify:
 
-1. Update the source file
-2. Update or regenerate the corresponding embed template
-3. Verify template matches source (except allowed templating)
-
-## Command Mapping
-
-| Plugin Command | Embedded Command |
-|----------------|------------------|
-| `/cartographer:chart` | `/chart` |
-| `/cartographer:rechart` | `/rechart` |
-| `/cartographer:calibrate` | `/calibrate` |
-| `/cartographer:calibrate-parallel` | `/calibrate-parallel` |
-| `/cartographer:explore` | `/explore` |
-| `/cartographer:where` | `/where` |
-| `/cartographer:validate` | `/validate` |
-| `/cartographer:capture` | `/capture` |
-| `/navigator:plan` | `/spec-plan` |
-| `/navigator:build` | `/spec-build` |
-| `/navigator:review` | `/spec-review` |
-| `/navigator:iterate` | `/spec-iterate` |
+1. All commands are present in output directory
+2. All agent files are present (if `--agents` used)
+3. Command references use embedded paths
+4. Agent paths are flattened correctly

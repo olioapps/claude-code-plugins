@@ -200,7 +200,7 @@ Options:
 {list if any}
 
 **Next steps:**
-- Run `/cartographer:calibrate` to verify accuracy
+- Run `/cartographer:health` to verify accuracy
 ```
 
 ---

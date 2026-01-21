@@ -1,8 +1,8 @@
 ---
 model: sonnet
-allowed-tools: Read, Write, Glob, Bash(test:*), Bash(mkdir:*), AskUserQuestion
+allowed-tools: Read, Write, Glob, Bash(test:*), Bash(mkdir:*), Bash(find:*), AskUserQuestion
 argument-hint: [--cartographer | --navigator | --agents | --all] [--output <dir>]
-description: Export commands for plugin-free operation
+description: Export commands for plugin-free operation (dynamic generation)
 ---
 
 ## Context
@@ -17,70 +17,65 @@ Arguments: `/cartographer:embed [OPTIONS]`
 
 Current directory: !`pwd`
 
-## Command Mapping
+## Dynamic Generation
+
+This command generates embedded commands **at runtime** from the plugin source files. No separate template files are maintained - the plugin commands ARE the source of truth.
+
+### Transformation Rules
+
+When embedding, apply these transformations:
+
+| Pattern | Replacement | Example |
+|---------|-------------|---------|
+| `/cartographer:X` | `/X` | `/cartographer:chart` → `/chart` |
+| `/navigator:X` | `/spec-X` | `/navigator:plan` → `/spec-plan` |
+| `agents/X.md` | `agents/X.md` | (unchanged, relative paths work) |
+| `Run \`/cartographer:` | `Run \`/` | Error message updates |
+
+### Command Mapping
 
 | Plugin Command | Embedded Name | Model |
 |----------------|---------------|-------|
 | `/cartographer:chart` | `/chart` | sonnet |
 | `/cartographer:rechart` | `/rechart` | sonnet |
-| `/cartographer:calibrate` | `/calibrate` | sonnet |
-| `/cartographer:calibrate-parallel` | `/calibrate-parallel` | sonnet |
+| `/cartographer:health` | `/health` | sonnet |
 | `/cartographer:explore` | `/explore` | sonnet |
 | `/cartographer:where` | `/where` | haiku |
-| `/cartographer:validate` | `/validate` | sonnet |
 | `/cartographer:capture` | `/capture` | haiku |
-| `/cartographer:review` | `/atlas-review` | sonnet |
 | `/navigator:plan` | `/spec-plan` | sonnet |
 | `/navigator:build` | `/spec-build` | sonnet |
 | `/navigator:review` | `/spec-review` | sonnet |
-| `/navigator:iterate` | `/spec-iterate` | sonnet |
+
+### Agent Mapping
+
+| Plugin Agent | Embedded Path |
+|--------------|---------------|
+| `agents/surveyor.md` | `agents/surveyor.md` |
+| `agents/auditor.md` | `agents/auditor.md` |
+| `agents/import-analyzer.md` | `agents/import-analyzer.md` |
+| `agents/review/pattern-enforcer.md` | `agents/pattern-enforcer.md` |
+| `agents/review/architecture-auditor.md` | `agents/architecture-auditor.md` |
+| `agents/review/anti-pattern-detector.md` | `agents/anti-pattern-detector.md` |
+| `agents/review/convention-checker.md` | `agents/convention-checker.md` |
+| `agents/review/atlas-validator.md` | `agents/atlas-validator.md` |
 
 ## Workflow
 
-### 1. Discover Plugin Templates
+### 1. Discover Plugin Source
 
-Locate the cartographer plugin's embed templates. Search in order:
+Locate the cartographer plugin source. Search in order:
 
 ```
-~/.claude/plugins/*/cartographer/assets/embed-templates/
-~/.claude/plugins/marketplaces/*/cartographer/assets/embed-templates/
-.claude/plugins/*/cartographer/assets/embed-templates/
+~/.claude/plugins/*/cartographer/
+~/.claude/plugins/marketplaces/*/cartographer/
+.claude/plugins/*/cartographer/
 ```
 
-Use Glob to find `*.template.md` files. Store path as `{template_dir}`.
-
-**Required templates:**
-
-Cartographer:
-- `cartographer-chart.template.md`
-- `cartographer-rechart.template.md`
-- `cartographer-calibrate.template.md`
-- `cartographer-calibrate-parallel.template.md`
-- `cartographer-explore.template.md`
-- `cartographer-where.template.md`
-- `cartographer-validate.template.md`
-- `cartographer-capture.template.md`
-- `cartographer-review.template.md`
-
-Navigator:
-- `navigator-plan.template.md`
-- `navigator-build.template.md`
-- `navigator-review.template.md`
-- `navigator-iterate.template.md`
-
-Agents (if --agents or --all):
-- `agent-surveyor.template.md`
-- `agent-auditor.template.md`
-- `agent-import-analyzer.template.md`
-- `agent-pattern-enforcer.template.md`
-- `agent-architecture-auditor.template.md`
-- `agent-anti-pattern-detector.template.md`
-- `agent-convention-checker.template.md`
-- `agent-atlas-validator.template.md`
+Use Glob to find `commands/cartographer/*.md` files. Store path as `{plugin_dir}`.
 
 **If not found:**
 ```
-❌ Could not locate cartographer plugin templates.
+❌ Could not locate cartographer plugin source.
 
 Searched:
 - ~/.claude/plugins/*/cartographer/
@@ -106,98 +101,190 @@ test -d "{output_dir}" && echo "EXISTS" || echo "NOT_FOUND"
 
 ```bash
 mkdir -p {output_dir}
+mkdir -p {output_dir}/agents  # if --agents or --all
 ```
 
-### 4. Export Commands
+### 4. Export Cartographer Commands (if enabled)
 
-For each command to export:
-1. Read template from `{template_dir}`
-2. Write to output directory with embedded name
+For each command in `commands/cartographer/`:
+
+1. **Read** source file content
+2. **Transform** command references:
+   - Replace `/cartographer:chart` with `/chart`
+   - Replace `/cartographer:rechart` with `/rechart`
+   - Replace `/cartographer:health` with `/health`
+   - Replace `/cartographer:explore` with `/explore`
+   - Replace `/cartographer:where` with `/where`
+   - Replace `/cartographer:capture` with `/capture`
+   - Replace `/cartographer:orient` with `/orient`
+   - Replace `/cartographer:embed` with `/embed`
+   - Replace `/cartographer:help` with `/help`
+3. **Transform** navigator references:
+   - Replace `/navigator:plan` with `/spec-plan`
+   - Replace `/navigator:build` with `/spec-build`
+   - Replace `/navigator:review` with `/spec-review`
+4. **Write** to output directory with embedded name
 
 **File naming:**
-- `cartographer-{name}.template.md` → `{name}.md`
-- `navigator-{name}.template.md` → `spec-{name}.md`
-- `agent-{name}.template.md` → `agents/{name}.md`
+- `chart.md` → `chart.md`
+- `rechart.md` → `rechart.md`
+- `health.md` → `health.md`
+- `explore.md` → `explore.md`
+- `where.md` → `where.md`
+- `capture.md` → `capture.md`
 
-### 5. Export Agents (if --agents or --all)
+### 5. Export Navigator Commands (if enabled)
 
-Create agents directory and export agent definitions:
+For each command in `commands/navigator/`:
 
-```bash
-mkdir -p {output_dir}/agents
-```
+1. **Read** source file content
+2. **Apply same transformations** as cartographer commands
+3. **Write** to output directory with `spec-` prefix
 
-**Agent file mapping:**
+**File naming:**
+- `plan.md` → `spec-plan.md`
+- `build.md` → `spec-build.md`
+- `review.md` → `spec-review.md`
 
-| Template | Output |
-|----------|--------|
-| `agent-surveyor.template.md` | `agents/surveyor.md` |
-| `agent-auditor.template.md` | `agents/auditor.md` |
-| `agent-import-analyzer.template.md` | `agents/import-analyzer.md` |
-| `agent-pattern-enforcer.template.md` | `agents/pattern-enforcer.md` |
-| `agent-architecture-auditor.template.md` | `agents/architecture-auditor.md` |
-| `agent-anti-pattern-detector.template.md` | `agents/anti-pattern-detector.md` |
-| `agent-convention-checker.template.md` | `agents/convention-checker.md` |
-| `agent-atlas-validator.template.md` | `agents/atlas-validator.md` |
+### 6. Export Agents (if --agents or --all)
 
-**Commands reference agents via relative paths:**
+For each agent file:
 
-| Command | Required Agents |
-|---------|-----------------|
-| `chart.md` | `agents/surveyor.md`, `agents/import-analyzer.md` |
-| `calibrate.md` | `agents/auditor.md` |
-| `validate.md` | `agents/atlas-validator.md` |
-| `spec-review.md` | `agents/pattern-enforcer.md`, `agents/architecture-auditor.md`, `agents/anti-pattern-detector.md`, `agents/convention-checker.md` |
+1. **Read** source agent file
+2. **Transform** any plugin command references
+3. **Flatten** review agents (remove `review/` subdirectory)
+4. **Write** to `{output_dir}/agents/`
 
-Commands use Task tool to invoke agents from the `agents/` directory. Agent definitions stay separate from command logic.
+**Agent flattening:**
+- `agents/surveyor.md` → `agents/surveyor.md`
+- `agents/auditor.md` → `agents/auditor.md`
+- `agents/import-analyzer.md` → `agents/import-analyzer.md`
+- `agents/review/pattern-enforcer.md` → `agents/pattern-enforcer.md`
+- `agents/review/architecture-auditor.md` → `agents/architecture-auditor.md`
+- `agents/review/anti-pattern-detector.md` → `agents/anti-pattern-detector.md`
+- `agents/review/convention-checker.md` → `agents/convention-checker.md`
+- `agents/review/atlas-validator.md` → `agents/atlas-validator.md`
 
-### 6. Report Results
+**Update agent paths in commands:**
+- `agents/review/X.md` → `agents/X.md`
+
+### 7. Report Results
 
 ```markdown
 ## Commands Embedded
 
 **Output:** `{output_dir}`
+**Source:** `{plugin_dir}`
 
-### Cartographer Commands (daily use)
-- `/where` - Quick path lookup
-- `/explore` - Deep domain analysis
-- `/calibrate` - Check atlas drift
-- `/capture` - Capture new patterns
-- `/validate` - Validate atlas structure
-- `/atlas-review` - Review atlas quality
-
-### Cartographer Commands (plugin-only)
-- `/chart` - Generate atlas (initial)
-- `/rechart` - Update atlas (regeneration)
-- `/calibrate-parallel` - Parallel drift check (advanced)
+### Cartographer Commands
+| Command | Purpose |
+|---------|---------|
+| `/chart` | Generate atlas (initial) |
+| `/rechart` | Update atlas (regeneration) |
+| `/health` | Check atlas health (drift + structure + quality) |
+| `/explore` | Deep domain analysis |
+| `/where` | Quick path lookup |
+| `/capture` | Capture new patterns |
 
 ### Navigator Commands
-- `/spec-plan` - Create implementation spec
-- `/spec-build` - Execute spec
-- `/spec-review` - Review implementation
-- `/spec-iterate` - Iterative UI improvement
+| Command | Purpose |
+|---------|---------|
+| `/spec-plan` | Create implementation spec |
+| `/spec-build` | Execute spec |
+| `/spec-review` | Review implementation |
 
 {IF agents exported:}
 ### Agent Definitions
 Exported to `{output_dir}/agents/`:
-- `surveyor.md` - Codebase analysis
-- `auditor.md` - Drift detection
-- `import-analyzer.md` - Import pattern analysis
-- `atlas-validator.md` - Atlas structure validation
-- `pattern-enforcer.md` - Pattern compliance
-- `architecture-auditor.md` - Layer boundaries
-- `anti-pattern-detector.md` - Anti-pattern detection
-- `convention-checker.md` - Naming conventions
+| Agent | Purpose |
+|-------|---------|
+| `surveyor.md` | Codebase analysis |
+| `auditor.md` | Drift detection |
+| `import-analyzer.md` | Import pattern analysis |
+| `atlas-validator.md` | Atlas structure validation |
+| `pattern-enforcer.md` | Pattern compliance |
+| `architecture-auditor.md` | Layer boundaries |
+| `anti-pattern-detector.md` | Anti-pattern detection |
+| `convention-checker.md` | Naming conventions |
+
+### Transformation Applied
+- Plugin command references updated for standalone use
+- Agent paths flattened (review/ subdirectory removed)
+- All links resolve to embedded files
 
 **Next steps:**
 - Commands are ready to use without the plugin
-- Re-run `/cartographer:embed` to update from plugin
+- Re-run `/cartographer:embed` to update from plugin changes
 ```
+
+## Transformation Implementation
+
+### Text Replacement Function
+
+For each file content, apply replacements in this order (order matters for overlapping patterns):
+
+```
+1. /cartographer:calibrate-parallel → /calibrate-parallel  # (deprecated, skip)
+2. /cartographer:calibrate → /calibrate  # (deprecated, skip)
+3. /cartographer:validate → /validate  # (deprecated, skip)
+4. /cartographer:review → /atlas-review  # (deprecated, skip)
+5. /cartographer:chart → /chart
+6. /cartographer:rechart → /rechart
+7. /cartographer:health → /health
+8. /cartographer:explore → /explore
+9. /cartographer:where → /where
+10. /cartographer:capture → /capture
+11. /cartographer:orient → /orient
+12. /cartographer:embed → /embed
+13. /cartographer:help → /help
+14. /navigator:iterate → /spec-iterate  # (deprecated, skip)
+15. /navigator:plan → /spec-plan
+16. /navigator:build → /spec-build
+17. /navigator:review → /spec-review
+18. agents/review/ → agents/  # Flatten agent paths
+```
+
+### Commands to Embed
+
+**Cartographer (6 commands):**
+- chart.md
+- rechart.md
+- health.md
+- explore.md
+- where.md
+- capture.md
+
+**Navigator (3 commands):**
+- plan.md
+- build.md
+- review.md
+
+**Agents (8 agents):**
+- surveyor.md
+- auditor.md
+- import-analyzer.md
+- pattern-enforcer.md (from review/)
+- architecture-auditor.md (from review/)
+- anti-pattern-detector.md (from review/)
+- convention-checker.md (from review/)
+- atlas-validator.md (from review/)
 
 ## Error Handling
 
 | Error | Action |
 |-------|--------|
-| Templates not found | Report search paths, suggest reinstall |
+| Plugin not found | Report search paths, suggest reinstall |
 | Permission denied | Report error, suggest different path |
-| Partial export | Report what succeeded |
+| Partial export | Report what succeeded, what failed |
+| Source file missing | Skip with warning, continue with others |
+
+## Responsibilities
+
+**YOU (handler):**
+- Locate plugin source directory
+- Read source command and agent files
+- Apply text transformations
+- Write transformed files to output
+- Report results
+
+**You generate embedded commands dynamically. No separate templates to maintain.**

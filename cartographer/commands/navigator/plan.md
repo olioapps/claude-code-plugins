@@ -38,7 +38,7 @@ Run `/cartographer:chart` to generate an atlas first.
 
 **Check atlas freshness:**
 - Read schema.yaml "Last Updated" timestamp
-- If >30 days old, warn: "⚠️ Atlas may be outdated. Consider `/cartographer:calibrate`"
+- If >30 days old, warn: "⚠️ Atlas may be outdated. Consider `/cartographer:health`"
 
 **Create specs directory:**
 ```bash
@@ -419,7 +419,7 @@ Before finalizing spec:
 | Error | Action | Recovery |
 |-------|--------|----------|
 | No atlas | Block with message | Run /cartographer:chart |
-| Atlas stale | Warn, continue | Suggest /cartographer:calibrate |
+| Atlas stale | Warn, continue | Suggest /cartographer:health |
 | No domains match | Ask for clarification | User provides more context |
 | Spec exists | Prompt for action | Overwrite / rename / view existing |
 

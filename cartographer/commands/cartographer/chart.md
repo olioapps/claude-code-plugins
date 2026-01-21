@@ -453,7 +453,6 @@ If no .atlas-ignore found in pre-flight:
 **Commands that stay plugin-only:**
 - `/cartographer:chart` - Initial atlas generation (rare)
 - `/cartographer:rechart` - Full regeneration (rare)
-- `/cartographer:calibrate-parallel` - Parallel calibration (advanced)
 - `/cartographer:embed` - Re-export if needed
 
 **Locate embed templates:**
