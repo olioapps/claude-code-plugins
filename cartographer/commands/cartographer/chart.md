@@ -11,6 +11,7 @@ Arguments: `/cartographer:chart [OPTIONS] [CONTEXT]`
 **Options:**
 - `--interactive` - (DEFAULT) Guided interview session before deep analysis
 - `--auto` - Skip interview, fully automatic analysis (for CI/automation)
+- `--deep` - Include import graph analysis for more accurate domain boundaries
 - `--mode=<mode>` - Pre-select mapping mode (skips that interview question)
   - `domains` - Feature/directory-based organization (e.g., users/, auth/, payments/)
   - `layers` - Backend layer-based organization (e.g., controllers/, providers/, daos/)
@@ -159,6 +160,21 @@ Options:
 - "No additional exclusions"
 - "Yes, skip these" → Follow-up: "Which directories? (comma-separated)"
 
+**Question 6: Import Graph Analysis** (skip if `--deep` already specified)
+```
+Would you like me to analyze import relationships for more accurate domain boundaries?
+
+This helps detect:
+- Hidden coupling between domains
+- Layering violations (e.g., controllers importing DAOs directly)
+- Domains that should be split or merged
+
+Takes ~30-60 seconds extra for medium codebases.
+```
+Options:
+- "Yes, run import analysis" → Set `deep_analysis: true`
+- "No, directory-based detection is sufficient" → Set `deep_analysis: false`
+
 ### 2b. Compile Interview Results
 
 Build enhanced context for deep analysis:
@@ -176,6 +192,7 @@ interview_results:
   exclusions:
     - "legacy/"
     - "deprecated/"
+  deep_analysis: {true|false}  # From Question 6 or --deep flag
 ```
 
 ---
@@ -211,6 +228,46 @@ The agent will return structured analysis in ---ANALYSIS--- format.
 - Extract metadata, domains, layers, file_patterns, config_files, testing, validation
 - Validate all required sections present
 - If parsing fails → Report error, suggest retry
+
+### 3b. Import Graph Analysis (Optional)
+
+**If `--deep` flag OR `deep_analysis: true` from interview:**
+
+```
+Use the import-analyzer agent to analyze import relationships.
+
+Context from surveyor:
+"""
+Domains detected: {list of domains with paths}
+Layers detected: {list of layers if applicable}
+Organization style: {domains|layers|hybrid}
+"""
+
+The agent will return structured analysis in ---IMPORT_ANALYSIS--- format.
+```
+
+**Parse import-analyzer output:**
+- Extract coupling_analysis, layering_violations, domain_adjustments
+- Extract extracted_anti_patterns for injection into schema.yaml
+
+**Merge import analysis into surveyor results:**
+
+1. **Domain adjustments:**
+   - If split_candidates found → Present to user for confirmation
+   - If merge_candidates found → Present to user for confirmation
+   - If new_domain_candidates found → Add to domain list with LOW confidence
+
+2. **Anti-patterns injection:**
+   - For each pattern in `extracted_anti_patterns`:
+   - Add to corresponding pattern's `anti_patterns_summary`
+
+3. **Coupling insights:**
+   - Add to observations section
+   - Flag high-coupling domains in their documentation
+
+**If not running import analysis:**
+- Skip this step
+- Proceed with surveyor-only results
 
 ### 3a. Draft Review (Interactive Only)
 
@@ -284,19 +341,21 @@ Using template from `assets/atlas-templates/schema.template.yaml`:
    - example_files
    - related patterns
    - pattern_guide reference
+   - anti_patterns_summary (2-4 codebase-specific rules)
 
 **Compositions section (embedded in schema.yaml):**
-1. Use compositions detected by surveyor from git history analysis
-2. Include standard compositions that apply to this codebase type:
-   - Backend API: `add_api_endpoint`, `add_database_table`, `add_background_job`
-   - Frontend SPA: `add_frontend_feature`, `add_page_route`, `add_state_slice`
-3. Add detected_correlations if surveyor found file change patterns
+Compositions are **optional and manually curated** by the team. Include standard compositions based on codebase type:
+- Backend API: `add_api_endpoint`, `add_database_table`, `add_background_job`
+- Frontend SPA: `add_frontend_feature`, `add_page_route`, `add_state_slice`
+
+Teams can later customize these in schema.yaml to match their actual workflows.
 
 **Important:** Only include codebase-specific, objectively extractable facts:
 - ✅ File naming conventions (pattern matching)
 - ✅ Registration locations (import graph analysis)
 - ✅ Validation commands (from package.json scripts)
 - ✅ Actual example file paths
+- ✅ Codebase-specific anti-patterns (layering violations, naming inconsistencies)
 - ❌ Fragility/freedom levels (human judgment)
 - ❌ Generic anti-patterns (Claude already knows)
 - ❌ "When to use" philosophy
@@ -310,12 +369,12 @@ Using template from `assets/atlas-templates/SKILL.template.md`:
 1. Create project structure ASCII tree
 2. Build domain router table (keywords → references)
 3. Build pattern router table (tasks → pattern guides)
-4. Add file location conventions
-5. Add key technologies list
 
 **Keywords for domain router:**
 - Extract from domain names and purposes
 - Include common synonyms (e.g., "redux, state, slice, store")
+
+**Note:** File patterns, technologies, and anti-patterns are in schema.yaml (not duplicated in SKILL.md).
 
 **Write to:** `.claude/skills/atlas/SKILL.md`
 
@@ -367,7 +426,7 @@ If no .atlas-ignore found in pre-flight:
 
 **Check all files created:**
 - SKILL.md exists and has content
-- schema.yaml is valid YAML (includes patterns, keyword_index, compositions)
+- schema.yaml is valid YAML (includes patterns, keyword_index)
 - observations.md exists and has content
 - All referenced files exist
 - No broken links in SKILL.md
@@ -389,12 +448,18 @@ If no .atlas-ignore found in pre-flight:
 - Domains identified: {count}
 - File patterns detected: {count}
 - Pattern conventions extracted: {count}
-- Compositions defined: {count}
 - Reference files created: {count}
+- Import analysis: {✅ Completed | ⏭️ Skipped}
+
+{IF import analysis was run:}
+**Import Analysis Insights:**
+- Coupling issues detected: {count}
+- Layering violations found: {count}
+- Domain adjustments suggested: {count}
 
 **Files created:**
 - `.claude/skills/atlas/SKILL.md`
-- `.claude/skills/atlas/references/schema.yaml` (unified: structure + patterns + compositions)
+- `.claude/skills/atlas/references/schema.yaml` (unified: structure + patterns)
 - `.claude/skills/atlas/references/observations.md`
 {list of domain references}
 {list of pattern guides}
@@ -412,6 +477,7 @@ If no .atlas-ignore found in pre-flight:
 | Atlas exists | Prompt for overwrite/rechart | User decides |
 | No write permission | Show error with fix | User fixes permissions |
 | Surveyor fails | Report error | Suggest retry with more context |
+| Import-analyzer fails | Warn, continue without import analysis | Atlas still generated, less accurate |
 | Low confidence (>50%) | Interactive prompts | User confirms classifications |
 | Template missing | Report missing template | Check plugin installation |
 | Validation fails | Report specific issues | Attempt auto-fix or manual fix |
@@ -421,6 +487,7 @@ If no .atlas-ignore found in pre-flight:
 **YOU (handler):**
 - Pre-flight checks and permissions
 - Invoke surveyor agent
+- Optionally invoke import-analyzer agent (if --deep or user requests)
 - Handle low confidence prompts
 - Generate all atlas files from templates
 - Validate output
@@ -431,4 +498,10 @@ If no .atlas-ignore found in pre-flight:
 - Detect project type, domains, patterns
 - Return structured analysis
 
-**You do NOT explore the codebase directly. The surveyor agent does that.**
+**Import-analyzer agent (optional):**
+- Analyze import relationships between domains
+- Detect coupling patterns and layering violations
+- Suggest domain boundary adjustments
+- Extract codebase-specific anti-patterns
+
+**You do NOT explore the codebase directly. The agents do that.**

@@ -8,6 +8,7 @@ This reference defines how to identify domains within a codebase by directory pa
 2. **Structural boundaries**: Look for directories with distinct conventions or purposes
 3. **One clear purpose**: If a domain description needs "and", consider splitting
 4. **Evidence-based**: Every domain should have supporting file pattern evidence
+5. **Import-aware**: When available, use import relationships to validate domain boundaries
 
 ---
 
@@ -72,6 +73,18 @@ This reference defines how to identify domains within a codebase by directory pa
 | Very few files (<3) | -0.10 | May not warrant domain |
 | No clear naming pattern | -0.20 | Hard to characterize |
 
+### Import Graph Scoring (when `--deep` analysis enabled)
+
+| Factor | Points | Description |
+|--------|--------|-------------|
+| Low external coupling (<20%) | +0.15 | Self-contained domain |
+| Clear dependency direction | +0.10 | Imports flow one way |
+| No bidirectional coupling | +0.10 | Clean boundaries |
+| High internal cohesion | +0.15 | Files within domain import each other |
+| Heavy external coupling (>50%) | -0.20 | May need to split or merge |
+| Bidirectional coupling | -0.15 | Tangled boundaries |
+| Layering violations | -0.10 | Skips architectural layers |
+
 ### Example
 
 ```
@@ -128,6 +141,49 @@ Keep as single domain when:
 2. **Tight coupling**: Heavy cross-imports within directory
 3. **Small scale**: Combined would be <30 files
 4. **Single purpose**: One sentence describes all content
+
+---
+
+## Import Graph Analysis
+
+Import analysis is an **optional supplement** to directory-based detection, enabled via `--deep` flag or interview question. It analyzes actual `import`/`from` statements to validate and refine domain boundaries.
+
+### When Import Analysis Helps
+
+| Scenario | How Import Analysis Helps |
+|----------|---------------------------|
+| Unclear directory structure | Reveals de facto boundaries from usage |
+| Layered architecture | Detects violations (controllers importing DAOs) |
+| Large codebase | Finds hidden coupling not obvious from names |
+| Refactoring assessment | Shows which domains are tangled |
+| Legacy code | Maps actual dependencies vs intended structure |
+
+### What Import Analysis Detects
+
+**Coupling patterns:**
+- Strong coupling (>50% cross-imports) → Consider merging domains
+- Bidirectional coupling → Tangled boundaries, needs refactoring
+- Fan-in hubs → Central utilities that many domains depend on
+- Fan-out concerns → Domains with too many responsibilities
+
+**Layering violations:**
+- Controllers importing DAOs directly (skipping providers)
+- Reverse direction imports (providers importing routes)
+- Cross-layer shortcuts
+
+**Domain boundary issues:**
+- Split candidates: Directory has distinct clusters
+- Merge candidates: Two directories that are effectively one unit
+- Missing domains: Heavily-imported areas not tracked
+
+### Limitations
+
+Import analysis cannot detect:
+- Runtime dependencies (dynamic imports, dependency injection)
+- Implicit coupling through shared state
+- Architectural intent (only observes actual usage)
+
+Use import analysis to **supplement**, not replace, developer knowledge about the codebase.
 
 ---
 

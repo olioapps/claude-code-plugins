@@ -66,6 +66,7 @@ The templates are NOT in the current working directory. Search these locations i
 **If --agents flag, also verify:**
    - `agent-surveyor.template.md`
    - `agent-auditor.template.md`
+   - `agent-import-analyzer.template.md`
 
 **If templates not found:**
 ```

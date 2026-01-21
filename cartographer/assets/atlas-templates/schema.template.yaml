@@ -222,6 +222,13 @@ patterns:
       - {{this}}
 {{/each}}
 {{/if}}
+{{#if this.anti_patterns_summary}}
+    # Quick reference: common mistakes to avoid (full details in pattern_guide)
+    anti_patterns_summary:
+{{#each this.anti_patterns_summary}}
+      - '{{this}}'
+{{/each}}
+{{/if}}
 
 {{/each}}
 
@@ -252,19 +259,8 @@ compositions:
 
 {{/each}}
 
-{{#if detected_correlations}}
-# Detected file change correlations (from git history analysis)
-detected_correlations:
-{{#each detected_correlations}}
-  - files_commonly_changed_together:
-{{#each this.files}}
-      - '{{this}}'
-{{/each}}
-    suggested_composition: '{{this.suggested_composition}}'
-    confidence: {{this.confidence}}
-
-{{/each}}
-{{/if}}
+# Note: Compositions are manually curated. Define common multi-pattern workflows
+# that your team uses (e.g., add_api_endpoint, add_database_table).
 
 # Reference to technology observations
 observations_file: references/observations.md

@@ -243,10 +243,41 @@ For each file pattern detected in Step 5, extract codebase-specific conventions:
 
 | Extract (Codebase-Specific) | Skip (Claude Already Knows) |
 |-----------------------------|------------------------------|
-| File naming convention | Generic anti-patterns |
-| Registration file paths | Framework best practices |
+| File naming convention | Generic framework advice |
+| Registration file paths | Basic language idioms |
 | Actual validation commands | "When to use" philosophy |
 | Real example file paths | Generic tutorials |
+| Codebase-specific anti-patterns | Universal anti-patterns |
+
+### Step 9b: Extract Anti-Patterns Summary
+
+For each pattern identified, extract 2-4 **codebase-specific** anti-patterns by analyzing:
+
+**Detection methods:**
+1. **Inconsistent examples** - Find files that don't follow the dominant pattern
+2. **Comment warnings** - Grep for `// TODO`, `// FIXME`, `// WARNING`, `// HACK`
+3. **Layering violations** - Detect imports that skip layers (e.g., controller importing DAO directly)
+4. **Naming inconsistencies** - Find files that break the convention
+
+**For each pattern, identify anti-patterns like:**
+- "Don't import {X} directly in {Y} files - use {Z} layer"
+- "Don't use {old_pattern} - use {new_pattern} instead"
+- "Don't skip registration in {file}"
+- "Don't mix {pattern_A} and {pattern_B} in same file"
+
+**Format:** Short, actionable statements starting with "Don't..."
+
+**Example output:**
+```yaml
+patterns:
+  controllers:
+    anti_patterns_summary:
+      - "Don't import DAOs directly - use providers layer"
+      - "Don't define types inline - import from types/"
+      - "Don't call external APIs - delegate to integrations/"
+```
+
+**Skip generic anti-patterns Claude already knows** (e.g., "Don't use any types", "Don't skip error handling"). Only include rules **specific to this codebase's architecture**.
 
 ### Step 10: Detect Technology Observations
 
@@ -255,38 +286,6 @@ Document observed technologies with evidence, NOT decision rationale:
 - What technology is used (e.g., "Redux Toolkit")
 - Evidence from codebase (e.g., "store.ts uses configureStore, 40+ slice files")
 - Note explicitly that decision rationale is NOT extractable from code
-
-### Step 11: Detect Pattern Compositions
-
-Analyze git history and import relationships to identify patterns that are commonly used together:
-
-**Method 1: Git History Analysis (if available)**
-
-Run `git log --name-only --pretty=format: -n 100` to find files commonly changed together.
-
-Look for correlations:
-- Migration + Model + DataAccess files changing in same commit → "add_database_table" composition
-- Controller + Route + Provider files → "add_api_endpoint" composition
-- Component + Hook + Style files → "add_feature" composition
-
-**Method 2: Import Graph Analysis**
-
-Trace imports to detect pattern dependencies:
-- Controllers typically import Providers
-- Providers typically import DataAccess/Models
-- Routes wire up Controllers
-
-**For each detected composition, record:**
-- Files commonly changed together (list of glob patterns)
-- Suggested composition name
-- Confidence level (based on frequency of co-occurrence)
-
-**Standard compositions to look for:**
-- `add_api_endpoint`: Full REST endpoint stack
-- `add_database_table`: Schema + model + migrations
-- `add_background_job`: Worker + job definition + queue
-- `add_frontend_feature`: Component + state + API integration
-- `add_authentication`: Auth controller + middleware + config
 
 ## Output Format
 
@@ -449,6 +448,10 @@ patterns:
     related:
       - {related_pattern1}
       - {related_pattern2}
+    # Codebase-specific mistakes to avoid (2-4 items, start with "Don't...")
+    anti_patterns_summary:
+      - "{Don't do X - do Y instead}"
+      - "{Don't skip Z}"
 
 technology_observations:
   - category: "{State Management|API Layer|Database|etc.}"
@@ -457,16 +460,7 @@ technology_observations:
       - "{evidence 1}"
       - "{evidence 2}"
 
-compositions:
-  detected:
-    - id: {composition_id}
-      files_commonly_changed_together:
-        - "{pattern1/*.ts}"
-        - "{pattern2/*.ts}"
-      suggested_composition: "{add_api_endpoint|add_database_table|etc.}"
-      confidence: {high|medium|low}
-  standard_applicable:
-    - {list of standard compositions that apply to this codebase}
+# Note: compositions are manually defined in schema.yaml, not auto-detected
 
 observations:
   - {notable observation 1}

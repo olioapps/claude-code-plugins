@@ -42,23 +42,9 @@ For implementation tasks, read the relevant pattern guide:
 | {{this.task}} | [{{this.guide}}]({{this.guide}}) |
 {{/each}}
 
-## File Location Conventions
+## Schema Reference
 
-| Type | Path Pattern |
-|------|--------------|
-{{#each file_conventions}}
-| {{this.type}} | `{{this.pattern}}` |
-{{/each}}
-
-## Key Technologies
-
-{{#each key_technologies}}
-- {{this}}
-{{/each}}
-
-## Full Structure
-
-For complete machine-readable structure with file counts: [references/schema.yaml](references/schema.yaml)
+For file patterns, technologies, validation commands, and anti-patterns: [references/schema.yaml](references/schema.yaml)
 
 {{#if task_quick_reference}}
 ## Task-Type Quick Reference
