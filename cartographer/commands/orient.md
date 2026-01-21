@@ -1,4 +1,5 @@
 ---
+model: haiku
 allowed-tools: Read, Write, Bash(test:*), AskUserQuestion
 argument-hint: [--reset]
 description: Add minimal atlas awareness to CLAUDE.md (for human readers)

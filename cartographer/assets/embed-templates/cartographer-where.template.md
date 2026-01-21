@@ -1,8 +1,10 @@
 <!--
 Embedded Cartographer Command: where
+Source: cartographer/commands/cartographer/where.md
 Standalone version for plugin-free operation
 -->
 ---
+model: haiku
 allowed-tools: Read, Glob, Grep
 argument-hint: <query>
 description: Quick keyword to path lookup using atlas
@@ -11,7 +13,7 @@ description: Quick keyword to path lookup using atlas
 ## Context
 
 Arguments: `/where <QUERY>`
-- **<query>** - Keyword, file name, concept, or question
+- **<query>** - Keyword, file name, concept, or question (e.g., "auth", "UserProfile", "where is routing")
 
 Current directory: !`pwd`
 
@@ -19,32 +21,36 @@ Current directory: !`pwd`
 
 ### 1. Load Atlas
 
-Read:
-- `.claude/skills/atlas/SKILL.md`
-- `.claude/skills/atlas/references/schema.yaml`
+**Read atlas files:**
+- `.claude/skills/atlas/SKILL.md` - For domain router
+- `.claude/skills/atlas/references/schema.yaml` - For paths and patterns
 
-If not found: Fall back to basic grep/glob.
+**If atlas not found:**
+- Fall back to basic grep/glob search
+- Note: "Atlas not found. Using basic search. Run `/chart` for better results."
 
 ### 2. Parse Query
 
-Determine intent:
-- File name: `UserProfile.tsx` → file search
-- Keyword: `auth`, `routing` → domain lookup
-- Question: "where is X" → keyword extraction
+**Extract search intent:**
+- File name: `UserProfile.tsx` → direct file search
+- Keyword: `auth`, `routing`, `state` → domain lookup
+- Question: "where is X", "how to Y" → keyword extraction
 - Pattern: `*.service.ts` → pattern lookup
 
-### 3. Search
+### 3. Search Strategy
 
 **Priority order:**
-1. Exact file match
-2. Domain router match
-3. Schema domain/purpose match
-4. Pattern match
-5. Grep fallback
+
+1. **Exact file match:** Search for exact filename
+2. **Domain router match:** Check atlas domain router keywords
+3. **Schema domain match:** Check domain names and purposes
+4. **Pattern match:** Check file patterns in schema
+5. **Grep fallback:** Search file contents
 
 ### 4. Return Results
 
-**Domain match:**
+**For domain match:**
+
 ```markdown
 ## Found: {domain_name}
 
@@ -52,38 +58,117 @@ Determine intent:
 **Purpose:** {purpose}
 
 **Key files:**
-{list}
+{list key files}
 
-**Reference:** [{path}]({reference})
+**Reference:** [Read more]({reference_path})
 ```
 
-**File match:**
+**For file match:**
+
 ```markdown
 ## Found: {count} file(s)
 
-{list with paths and purposes}
+{for each file}
+- `{path}` - {inferred purpose or domain}
+{/for}
 
-**Related domain:** [{name}]({reference})
+**Related domain:** [{domain_name}]({reference_path})
 ```
 
-**Pattern match:**
-```markdown
-## Pattern: {name}
+**For pattern match:**
 
-**Location:** `{glob}`
+```markdown
+## Pattern: {pattern_name}
+
+**Location pattern:** `{glob}`
 **Count:** {count} files
+**Purpose:** {purpose}
 
 **Examples:**
-{list}
+{list example files}
+
+**Pattern guide:** [Implementation details]({pattern_reference})
 ```
 
-**No match:**
+**For multiple matches:**
+
+```markdown
+## Search: "{query}"
+
+### Domains
+{list matching domains with paths}
+
+### Files
+{list matching files}
+
+### Patterns
+{list matching patterns}
+
+**Tip:** Be more specific or use domain name directly.
+```
+
+**For no match:**
+
 ```markdown
 ## No results for "{query}"
 
 **Suggestions:**
-- Try: {alternatives}
-- Browse: {top domains}
+- Try related terms: {suggestions}
+- Browse domains: {list top domains}
+- Search file contents: `grep -r "{query}" src/`
 ```
 
-Keep responses concise and actionable.
+---
+
+## Query Examples
+
+| Query | Type | Expected Result |
+|-------|------|-----------------|
+| `auth` | keyword | Auth domain or auth-related files |
+| `UserProfile.tsx` | filename | Direct file path |
+| `*.api.ts` | pattern | API file pattern info |
+| `where is state` | question | State management domain |
+| `hooks` | keyword | Hooks domain |
+| `redux slice` | multi-word | Redux slices domain |
+
+---
+
+## Response Format
+
+Keep responses concise and actionable:
+
+✅ **Good:**
+```
+## Found: hooks
+
+**Location:** `src/hooks/`
+**Reference:** [references/grow/hooks.md](references/grow/hooks.md)
+```
+
+❌ **Avoid:**
+```
+I searched the atlas and found that hooks are located in the src/hooks directory.
+Based on the schema, this domain contains custom React hooks...
+[lengthy explanation]
+```
+
+---
+
+## Error Handling
+
+| Scenario | Response |
+|----------|----------|
+| No atlas | Use basic search, suggest chart |
+| No results | Suggestions and alternatives |
+| Ambiguous query | Show all matches, ask for specificity |
+| Multiple exact matches | List all with context |
+
+## Responsibilities
+
+**YOU (handler):**
+- Parse query intent
+- Search atlas efficiently
+- Return concise, actionable results
+- Provide navigation to full references
+
+**This is a quick lookup command. Keep it fast and focused.**

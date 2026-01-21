@@ -1,4 +1,5 @@
 ---
+model: haiku
 allowed-tools: Read, Glob, Grep
 argument-hint: <query>
 description: Quick keyword to path lookup using atlas

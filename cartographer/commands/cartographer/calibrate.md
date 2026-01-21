@@ -1,4 +1,5 @@
 ---
+model: sonnet
 allowed-tools: Task, Glob, Grep, Read, Bash(test:*), Bash(find:*), Bash(wc:*), Bash(git log:*), AskUserQuestion
 argument-hint: [--verbose]
 description: Detect drift between atlas and actual codebase state
@@ -214,3 +215,79 @@ This allows tracking drift over time.
 - Return structured audit
 
 **You present results. The auditor does the validation work.**
+
+---
+
+## Output Parsing Protocol
+
+### Auditor Agent Output
+
+**Delimiters:** `---AUDIT---` (start) and `---END---` (end)
+
+**Required fields to extract:**
+
+```yaml
+summary:
+  status: string           # Required: healthy|warning|critical
+  total_domains: number    # Required
+  valid_domains: number    # Required
+  drift_detected: string   # Required: yes|no
+  staleness_score: number  # Required: 0.0-1.0
+  last_updated: string     # Required
+  days_since_update: number  # Required
+
+critical_issues: []        # Required (may be empty)
+high_issues: []            # Required (may be empty)
+medium_issues: []          # Required (may be empty)
+low_issues: []             # Required (may be empty)
+
+domain_status:             # Required
+  {domain_name}:
+    path_exists: string    # Required: yes|no
+    documented_count: number
+    actual_count: number
+    drift_percent: number
+    status: string         # Required: valid|warning|invalid
+
+pattern_status: {}         # Optional
+
+reference_status: {}       # Optional
+
+recommendations: []        # Required (may be empty)
+```
+
+**Parsing steps:**
+1. Find `---AUDIT---` marker in agent output
+2. Parse YAML content until `---END---`
+3. Extract `summary.status` for overall health
+4. Collect all issues by severity (critical, high, medium, low)
+5. Build domain/pattern status tables for verbose output
+6. Extract recommendations for user actions
+
+**If parsing fails:**
+```
+❌ Failed to parse auditor output
+
+Error: {specific parsing error}
+
+Possible causes:
+- Auditor agent encountered unexpected codebase structure
+- Atlas files are malformed
+- Agent output was truncated
+
+Options:
+1. Retry calibration
+2. Run /cartographer:validate to check atlas format
+3. Manual inspection of atlas files
+```
+
+**Issue classification mapping:**
+
+| Agent Issue Type | Display Severity | Action |
+|------------------|------------------|--------|
+| `missing_path` | 🔴 Critical | Requires /cartographer:rechart |
+| `invalid_reference` | 🔴 Critical | Fix broken links |
+| `count_drift` (>50%) | 🟠 High | Recommend rechart |
+| `orphan_directory` | 🟡 Medium | Suggest /cartographer:explore |
+| `moderate_drift` (>20%) | 🟡 Medium | Monitor or rechart |
+| `minor_drift` | 🟢 Low | Informational |

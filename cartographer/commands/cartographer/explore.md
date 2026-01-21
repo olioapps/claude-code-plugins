@@ -1,4 +1,5 @@
 ---
+model: sonnet
 allowed-tools: Task, Glob, Grep, Read, Write, Bash(test:*), Bash(find:*), AskUserQuestion
 argument-hint: <domain or path>
 description: Deep domain analysis to enrich atlas references

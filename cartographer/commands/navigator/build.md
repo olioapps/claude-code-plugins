@@ -1,6 +1,7 @@
 ---
-allowed-tools: Task, Glob, Grep, Read, Write, Edit, Bash, AskUserQuestion
-argument-hint: <spec file>
+model: sonnet
+allowed-tools: Task, Glob, Grep, Read, Write, Edit, Bash, AskUserQuestion, TodoWrite
+argument-hint: <spec file> [--incremental]
 description: Execute spec with atlas pattern guidance (auto-creates implementation branch)
 ---
 
@@ -166,7 +167,23 @@ Must match `{target_branch}` before proceeding.
    Working directory: clean
 ```
 
-### 5. Load Pattern Guidance
+### 5. Load Pattern Guidance (Atlas-First)
+
+**Research Priority for Implementation Questions:**
+
+| Priority | Source | Purpose |
+|----------|--------|---------|
+| 1. PRIMARY | schema.yaml patterns | File conventions, registration, validation |
+| 2. SECONDARY | Pattern guides (references/patterns/*.md) | Templates, checklists, anti-patterns |
+| 3. TERTIARY | example_files from schema.yaml | Reference implementations |
+| 4. QUATERNARY | observations.md | Stack-specific notes and decisions |
+| 5. EXTERNAL | Context7/web | Only if atlas doesn't cover it |
+
+**Always cite atlas sources in implementation:**
+```
+// Following schema.yaml patterns.controllers.file_convention
+// See references/patterns/controllers.md for template
+```
 
 **For each pattern in spec, load from schema.yaml patterns section:**
 ```yaml
@@ -181,12 +198,15 @@ Must match `{target_branch}` before proceeding.
     - "{command 2}"
   example_files:
     - "{reference implementation to study}"
+  anti_patterns_summary:
+    - "{what to avoid}"
 ```
 
 **For each pattern guide referenced in spec:**
 - Read full pattern guide from `references/patterns/{pattern_id}.md`
 - Extract codebase-specific template
 - Extract implementation checklist
+- Note anti-patterns to avoid
 
 **Build guidance context:**
 ```
@@ -199,56 +219,110 @@ File Conventions (from schema.yaml patterns):
 Registration Steps:
 - {action} in {file}
 
-Reference Implementation:
-- Study: {example_file}
+Reference Implementation (study before writing):
+- {example_file}
+
+Anti-Patterns to Avoid:
+- {anti_pattern_1}
+- {anti_pattern_2}
 
 Checklist (from pattern guide):
 - [ ] {checklist item 1}
 - [ ] {checklist item 2}
 ```
 
-### 6. Execute Steps
+### 6. Execute Steps (Incremental Mode)
+
+**Execution Protocol with TodoWrite Tracking:**
+
+```
+1. Parse spec into discrete steps
+2. Create TodoWrite with all steps
+3. For each step:
+   a. Mark step in_progress in TodoWrite
+   b. Load relevant pattern guidance from schema.yaml
+   c. Execute the step
+   d. Run step-specific validation if defined
+   e. If validation passes:
+      - Commit with message: "[domain] step description"
+      - Mark checkbox in spec file: `[x]`
+      - Mark step completed in TodoWrite
+   f. If validation fails:
+      - Report failure, keep step in_progress
+      - Allow retry (max 3 attempts)
+4. Run full validation sequence at end
+```
 
 **For each step in spec:**
 
-1. **Announce step:**
+1. **Update TodoWrite:**
+   ```
+   Mark step {N} as in_progress
+   ```
+
+2. **Announce step:**
    ```
    ### Step {N}: {Step Title}
    ```
 
-2. **Load relevant context:**
+3. **Load relevant context (Atlas-First):**
    - Read files mentioned in step
-   - Apply pattern guidance from conventions.yaml
+   - Apply pattern guidance from schema.yaml patterns section
    - Study example_files if implementing new pattern
+   - Review anti_patterns_summary to avoid common mistakes
 
-3. **Implement changes:**
+4. **Implement changes:**
    - Follow spec instructions precisely
-   - Use file_convention from conventions.yaml for new files
+   - Use file_convention from schema.yaml patterns for new files
    - Use test_convention for test files
    - Adhere to pattern conventions from pattern guide
    - Write clean, documented code
 
-4. **Complete registration steps:**
-   - For each registration in conventions.yaml for this pattern
+5. **Complete registration steps:**
+   - For each registration in schema.yaml patterns for this pattern
    - Perform {action} in {file}
 
-5. **Verify step completion:**
+6. **Verify step completion:**
    - Check expected outcome
-   - Run pattern-specific validation_commands from conventions.yaml
-   - Fix any issues before proceeding
+   - Run pattern-specific validation_commands from schema.yaml patterns
+   - Fix any issues before proceeding (max 3 attempts)
 
-6. **Report progress:**
-   ```
-   ✅ Step {N} complete: {brief summary}
-   - Files created: {list}
-   - Registration: {completed steps}
-   - Validation: {pass/fail}
+7. **Commit step (if validation passes):**
+   ```bash
+   git add {files_changed}
+   git commit -m "[{domain}] {step_description}"
    ```
 
-**If step fails:**
+8. **Update spec file checkbox:**
+   - Edit spec file to mark step complete: `- [x] Step {N}`
+
+9. **Update TodoWrite:**
+   ```
+   Mark step {N} as completed
+   ```
+
+10. **Report progress:**
+    ```
+    ✅ Step {N} complete: {brief summary}
+    - Files created: {list}
+    - Registration: {completed steps}
+    - Validation: {pass/fail}
+    - Committed: {commit_hash}
+    ```
+
+**If step fails after 3 attempts:**
+- Keep step as in_progress in TodoWrite
 - Report specific error
-- Attempt recovery if possible
-- Ask user how to proceed if blocked
+- Ask user how to proceed
+- Create blocking issue note in spec
+
+**Spec File Step Format:**
+```markdown
+## Implementation Steps
+- [ ] Step 1: Create user model
+- [ ] Step 2: Add validation
+- [x] Step 3: Write tests (completed)
+```
 
 ### 7. Run Validation
 
@@ -375,6 +449,100 @@ Options:
 3. Create PR: `/git-actions:pr-write`
 ```
 
+### 10. Post-Build Knowledge Capture
+
+**Analyze the implementation for atlas improvements:**
+
+After successful build completion, evaluate:
+
+#### New Patterns Detected
+
+**Question:** Did this implementation introduce reusable patterns?
+
+If yes, identify:
+- Pattern name and purpose
+- File convention used
+- Test convention used
+- Example files created
+
+```
+📚 New pattern detected: {pattern_name}
+
+Would you like to add this to schema.yaml patterns section?
+- File convention: {convention}
+- Example files: {files}
+```
+
+#### Anti-Patterns Avoided
+
+**Question:** Did we catch any mistakes during implementation?
+
+If yes, identify:
+- What was the mistake
+- Why it was wrong
+- What we did instead
+
+```
+⚠️ Anti-pattern avoided: {description}
+
+Would you like to add this to {pattern_id}.anti_patterns_summary?
+- "Don't {anti_pattern}"
+```
+
+#### Task Mapping Discovery
+
+**Question:** Is this a repeatable workflow?
+
+If yes, identify:
+- Task type
+- Entry point
+- Pattern sequence
+
+```
+🔄 Repeatable task detected: {task_name}
+
+Would you like to add this to schema.yaml task_mappings or compositions?
+- Description: {description}
+- Entry point: {path}
+- Patterns: {pattern_sequence}
+```
+
+#### Stack Observations
+
+**Question:** Did we learn anything stack-specific?
+
+If yes, identify:
+- Technology/library insight
+- Workaround discovered
+- Configuration detail
+
+```
+💡 Stack observation: {description}
+
+Would you like to add this to observations.md?
+```
+
+**Prompt user for approval before any atlas modifications:**
+
+```
+📝 Knowledge Capture Summary
+
+Found {N} potential atlas improvements:
+1. {improvement_1}
+2. {improvement_2}
+
+Would you like to:
+1. Add all to atlas
+2. Review individually
+3. Skip (add later with /cartographer:capture)
+```
+
+**If user approves, update atlas files:**
+- Add to schema.yaml patterns section
+- Add to anti_patterns_summary
+- Add to task_mappings or compositions
+- Append to observations.md
+
 ---
 
 ## Step Execution Protocol
@@ -410,6 +578,153 @@ For each implementation step:
 | Prerequisites missing | Block with list | User resolves or overrides |
 | Step failure | Report, attempt fix | Ask user if stuck |
 | Validation failure | Fix and retry | Ask user after 3 attempts |
+
+---
+
+## Error Recovery Protocol
+
+### After 3 Failed Attempts
+
+When a step or validation fails after 3 attempts:
+
+**1. Preserve current state:**
+```bash
+git stash push -m "navigator-build: work-in-progress before failure at step {N}"
+```
+
+**2. Create recovery checkpoint:**
+Write `.claude/build-recovery.json`:
+```json
+{
+  "spec_file": "{spec_file}",
+  "branch": "{current_branch}",
+  "completed_steps": [1, 2, 3],
+  "failed_step": 4,
+  "failure_reason": "{error_summary}",
+  "stash_ref": "{git stash ref}",
+  "timestamp": "{ISO-8601}",
+  "files_modified": ["{list of files changed}"],
+  "commits_created": ["{list of commit hashes}"]
+}
+```
+
+**3. Present recovery options:**
+```
+❌ Step {N} failed after 3 attempts
+
+Error: {detailed_error}
+
+Work preserved:
+- Changes stashed: `git stash show -p`
+- Recovery file: `.claude/build-recovery.json`
+- Commits created: {count} (steps 1-{N-1})
+
+Options:
+1. Abort - Keep commits, discard uncommitted changes
+2. Rollback - Revert all commits from this build session
+3. Continue manually - I'll fix the issue myself
+4. Show detailed logs - See all attempt errors
+5. Resume later - Keep everything, I'll run /navigator:build --resume
+```
+
+### Partial Rollback Mechanism
+
+**If user selects "Rollback":**
+
+```bash
+# Get commits created during this session
+commits_to_revert=$(cat .claude/build-recovery.json | jq -r '.commits_created[]')
+
+# Create rollback branch for safety
+git branch build-rollback-{timestamp} HEAD
+
+# Revert each commit in reverse order
+for commit in $(echo $commits_to_revert | tac); do
+  git revert --no-commit $commit
+done
+
+# Single rollback commit
+git commit -m "Rollback: navigator:build failed at step {N}"
+```
+
+**Rollback report:**
+```
+🔄 Rollback complete
+
+- Reverted {count} commits
+- Rollback branch created: build-rollback-{timestamp}
+- Working directory: clean
+
+To restore work later:
+  git cherry-pick {commit_hashes}
+
+To delete rollback branch:
+  git branch -D build-rollback-{timestamp}
+```
+
+### Resume Support
+
+**If user runs `/navigator:build --resume` or `/navigator:build {spec} --resume`:**
+
+1. Check for `.claude/build-recovery.json`
+2. If found:
+   ```
+   🔄 Found recovery checkpoint
+
+   Spec: {spec_file}
+   Failed at: Step {N}
+   Completed: Steps 1-{N-1}
+   Stashed changes: {yes|no}
+
+   Options:
+   1. Resume from step {N} - Apply stash and continue
+   2. Restart from step 1 - Keep existing commits, redo all steps
+   3. Start fresh - Rollback and start over
+   4. Cancel
+   ```
+3. If "Resume":
+   ```bash
+   git stash pop
+   ```
+   Continue from failed step with TodoWrite showing remaining steps
+
+### State Preservation
+
+**During build, maintain state file:** `.claude/build-state.json`
+
+Updated after each step:
+```json
+{
+  "spec_file": "{spec}",
+  "start_time": "{timestamp}",
+  "current_step": 3,
+  "total_steps": 7,
+  "status": "in_progress",
+  "steps": [
+    {"step": 1, "status": "completed", "commit": "abc123", "files": ["a.ts"]},
+    {"step": 2, "status": "completed", "commit": "def456", "files": ["b.ts"]},
+    {"step": 3, "status": "in_progress", "attempt": 2, "files": []}
+  ],
+  "validation_results": []
+}
+```
+
+**On successful completion:** Delete state files
+**On failure:** Preserve for recovery
+
+### Cleanup Protocol
+
+After successful build:
+```bash
+rm -f .claude/build-state.json
+rm -f .claude/build-recovery.json
+```
+
+After rollback:
+```bash
+rm -f .claude/build-state.json
+rm -f .claude/build-recovery.json
+```
 
 ## Responsibilities
 

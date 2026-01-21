@@ -1,11 +1,13 @@
 <!--
 Embedded Cartographer Command: calibrate
+Source: cartographer/commands/cartographer/calibrate.md
 Standalone version for plugin-free operation
 -->
 ---
-allowed-tools: Glob, Grep, Read, Bash(test:*), Bash(find:*), Bash(wc:*), Bash(git log:*), AskUserQuestion
+model: sonnet
+allowed-tools: Task, Glob, Grep, Read, Bash(test:*), Bash(find:*), Bash(wc:*), Bash(git log:*), AskUserQuestion
 argument-hint: [--verbose]
-description: Detect drift between atlas and actual codebase
+description: Detect drift between atlas and actual codebase state
 ---
 
 ## Context
@@ -18,90 +20,203 @@ Current directory: !`pwd`
 
 ## Workflow
 
-### 1. Pre-flight
+### 1. Pre-flight Checks
 
 **Verify atlas exists:**
 ```bash
 test -f ".claude/skills/atlas/references/schema.yaml" && echo "EXISTS" || echo "NOT_FOUND"
 ```
 
-### 2. Load Atlas
+If not found → Error: "No atlas found. Run `/chart` first."
 
-Read and parse:
-- `.claude/skills/atlas/references/schema.yaml`
-- `.claude/skills/atlas/SKILL.md`
+### 2. Invoke Auditor Agent
 
-Extract:
-- Domains with paths and counts
-- File patterns with counts
-- Last updated timestamp
+```
+Use the auditor agent to audit the atlas.
 
-### 3. Validate Domains
+Current atlas location: .claude/skills/atlas/
+Schema path: .claude/skills/atlas/references/schema.yaml
 
-For each domain:
-```bash
-test -d "{path}" && echo "EXISTS" || echo "MISSING"
-find "{path}" -type f | wc -l
+The agent will return structured audit in ---AUDIT--- format.
 ```
 
-Calculate drift percentage.
+**Parse auditor output:**
+- Extract summary, issues by severity, domain/pattern status
+- Validate response format
 
-### 4. Validate Patterns
+### 3. Present Results
 
-For each pattern:
-```bash
-find . -path "{pattern}" -type f | wc -l
-```
+**Format based on verbosity:**
 
-Compare to documented counts.
-
-### 5. Detect Orphans
-
-Find source directories not covered by atlas.
-
-### 6. Check References
-
-Validate all links in SKILL.md point to existing files.
-
-### 7. Calculate Staleness
-
-- Days since last update
-- Git commits since last update
-
-### 8. Report
-
-**Determine status:**
-- 🟢 Healthy: No critical/high issues, staleness < 0.3
-- 🟡 Warning: No critical, has high OR staleness 0.3-0.6
-- 🔴 Critical: Has critical OR staleness > 0.6
+#### Summary Mode (default)
 
 ```markdown
 ## Atlas Calibration Report
 
-**Status:** {🟢|🟡|🔴} {status}
+**Status:** {🟢 Healthy | 🟡 Warning | 🔴 Critical}
 **Last Updated:** {date} ({days} days ago)
+**Staleness Score:** {score}/1.0
 
 ### Issues Found
 
-{list by severity}
+{if critical_issues}
+#### 🔴 Critical Issues ({count})
+{list each with type and message}
+{/if}
+
+{if high_issues}
+#### 🟠 High Priority ({count})
+{list each with type and message}
+{/if}
+
+{if medium_issues}
+#### 🟡 Medium Priority ({count})
+{list each with type and message}
+{/if}
+
+### Quick Stats
+- Domains: {valid}/{total} valid
+- Patterns: {valid}/{total} valid
+- References: {valid}/{total} valid
+
+### Recommendations
+{list prioritized recommendations}
+```
+
+#### Verbose Mode (--verbose)
+
+```markdown
+## Atlas Calibration Report (Verbose)
+
+**Status:** {status}
+**Last Updated:** {date}
 
 ### Domain Status
 
-| Domain | Path | Documented | Actual | Status |
-|--------|------|------------|--------|--------|
-{domain rows}
+| Domain | Path | Documented | Actual | Drift | Status |
+|--------|------|------------|--------|-------|--------|
+{for each domain}
+| {name} | {path} | {documented} | {actual} | {drift%} | {✅|⚠️|❌} |
+{/for}
+
+### Pattern Status
+
+| Pattern | Documented | Actual | Drift | Status |
+|---------|------------|--------|-------|--------|
+{for each pattern}
+| {name} | {documented} | {actual} | {drift%} | {✅|⚠️|❌} |
+{/for}
+
+### Reference Files
+
+| Reference | Exists | Links Valid | Issues |
+|-----------|--------|-------------|--------|
+{for each reference}
+| {path} | {yes/no} | {yes/no} | {issues} |
+{/for}
+
+### All Issues
+
+#### Critical
+{detailed list}
+
+#### High
+{detailed list}
+
+#### Medium
+{detailed list}
+
+#### Low
+{detailed list}
 
 ### Recommendations
-
-{prioritized actions}
+{detailed recommendations with commands}
 ```
 
-### 9. Offer Actions
+### 4. Offer Quick Actions
 
-If critical issues:
+**If critical issues found:**
 ```
+Use AskUserQuestion:
+
+Critical drift detected. How to proceed?
+
 Options:
-1. Run /rechart to fix
-2. Show detailed report
-3. Dismiss
+1. Run /rechart now to fix all issues
+2. Run /rechart --domain {most_affected} to fix worst domain
+3. Show detailed report for manual review
+4. Dismiss (acknowledge drift, continue using atlas)
 ```
+
+**If warning status:**
+```
+Use AskUserQuestion:
+
+Atlas has moderate drift. Recommended action?
+
+Options:
+1. Run /rechart to update
+2. Run /explore {domain} to investigate specific area
+3. Dismiss for now
+```
+
+### 5. Log Calibration
+
+**Create calibration log (optional):**
+- Timestamp
+- Status
+- Issues found
+- Actions taken
+
+This allows tracking drift over time.
+
+---
+
+## Status Thresholds
+
+| Status | Criteria |
+|--------|----------|
+| 🟢 Healthy | No critical/high issues, staleness < 0.3 |
+| 🟡 Warning | No critical issues, has high OR staleness 0.3-0.6 |
+| 🔴 Critical | Has critical issues OR staleness > 0.6 OR >50% invalid |
+
+---
+
+## Issue Types
+
+| Type | Severity | Description |
+|------|----------|-------------|
+| `missing_path` | CRITICAL | Documented path no longer exists |
+| `invalid_reference` | CRITICAL | Reference file link broken |
+| `count_drift_high` | HIGH | File count differs >50% |
+| `count_drift_medium` | MEDIUM | File count differs >20% |
+| `orphan_directory` | MEDIUM | Directory not covered by atlas |
+| `stale_atlas` | MEDIUM | Atlas >30 days old |
+| `count_drift_low` | LOW | File count differs <20% |
+| `minor_issue` | LOW | Cosmetic or informational |
+
+---
+
+## Error Handling
+
+| Error | Action | Recovery |
+|-------|--------|----------|
+| No atlas found | Error message | Run /chart |
+| Auditor fails | Report error | Manual inspection |
+| Parse error | Report parse issue | Check atlas format |
+
+## Responsibilities
+
+**YOU (handler):**
+- Verify atlas exists
+- Invoke auditor agent
+- Format and present results
+- Offer quick actions based on severity
+
+**Auditor agent:**
+- Validate all documented elements
+- Detect orphan directories
+- Calculate staleness
+- Return structured audit
+
+**You present results. The auditor does the validation work.**
