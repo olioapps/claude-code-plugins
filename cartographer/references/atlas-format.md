@@ -2,6 +2,16 @@
 
 This reference defines validation rules for generated atlas skills. For full templates, see `assets/atlas-templates/`.
 
+## Related References
+
+| Reference | Purpose |
+|-----------|---------|
+| `protocols/agent-output-parsing.md` | Agent output parsing specifications |
+| `review/scoring-criteria.md` | Review grading rubrics |
+| `review/json-schema.md` | Review JSON output schema |
+| `review/error-recovery.md` | Error handling procedures |
+| `review/discovery-protocol.md` | Atlas refinement workflow |
+
 ## Directory Structure
 
 ```

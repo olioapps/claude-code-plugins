@@ -583,110 +583,36 @@ Write `.claude/commands/atlas-help.md` with command list and usage.
 
 ## Output Parsing Protocol
 
-### Surveyor Agent Output
+**See:** `references/protocols/agent-output-parsing.md` for complete parsing specifications.
 
-**Delimiters:** `---ANALYSIS---` (start) and `---END---` (end)
+### Agents Used
 
-**Quick scan mode:** `---QUICK_SCAN---` and `---END_QUICK_SCAN---`
+| Agent | Delimiter | Purpose |
+|-------|-----------|---------|
+| surveyor (full) | `---ANALYSIS---` | Complete codebase analysis |
+| surveyor (quick) | `---QUICK_SCAN---` | Fast reconnaissance for interview |
+| import-analyzer | `---IMPORT_ANALYSIS---` | Import graph analysis (with `--deep`) |
 
-**Required fields to extract:**
+### Key Fields Summary
 
-```yaml
-# From surveyor output, extract and validate:
-metadata:
-  project: string          # Required
-  type: string             # Required: frontend_spa|backend_api|fullstack|monorepo|cli|library
-  type_confidence: string  # Required: high|medium|low
-  organization_style: string  # Required: domains|layers|hybrid
-  stack:
-    language: string       # Required
-    framework: string      # Optional
-  architecture: string     # Optional
+**Surveyor output:**
+- `metadata` - Project type, stack, organization style
+- `domains` - Logical code groupings with paths and counts
+- `layers` - Architectural layers (if applicable)
+- `file_patterns` - Naming conventions
+- `patterns` - Pattern conventions with anti-patterns
+- `validation` - Build/test/lint commands
 
-domains:                   # Required, at least 2
-  {name}:
-    location: string       # Required, validate path exists
-    purpose: string        # Required
-    count: number          # Required
-    confidence: string     # Required
-    key_files: [strings]   # Required
+**Import-analyzer output:**
+- `coupling_analysis` - Domain coupling metrics
+- `layering_violations` - Import boundary issues
+- `domain_adjustments` - Suggested splits/merges
+- `extracted_anti_patterns` - Discovered anti-patterns
 
-layers:                    # Optional, required if organization_style includes layers
-  {name}:
-    location: string
-    file_pattern: string
-    count: number
-    key_files: [strings]
+### Merge Protocol
 
-file_patterns:             # Required, at least 2
-  {name}:
-    pattern: string
-    example: string
-    count: number
-    purpose: string
-
-patterns:                  # Required
-  {id}:
-    keywords: [strings]
-    file_convention: string
-    validation_commands: [strings]
-
-validation:                # Required
-  commands: [{name, command}]
-```
-
-**Parsing steps:**
-1. Find `---ANALYSIS---` marker
-2. Parse YAML content until `---END---`
-3. Validate required fields present
-4. Validate paths exist where specified
-5. Store parsed data for atlas generation
-
-**If parsing fails:**
-```
-❌ Failed to parse surveyor output
-
-Error: {specific parsing error}
-Raw output preview: {first 500 chars}
-
-Options:
-1. Retry surveyor analysis
-2. Provide additional context
-3. Abort
-```
-
-### Import-Analyzer Agent Output
-
-**Delimiters:** `---IMPORT_ANALYSIS---` (start) and `---END---` (end)
-
-**Fields to extract:**
-
-```yaml
-coupling_analysis:
-  high_coupling_pairs: [{domain_a, domain_b, percentage}]
-  fan_in_hubs: [{domain, dependents_count}]
-  fan_out_concerns: [{domain, dependencies_count}]
-
-layering_violations:
-  - source: string         # File with violation
-    imports: string        # What it imports
-    violation: string      # Description
-    severity: string       # error|warning
-
-domain_adjustments:
-  split_candidates: [{domain, reason, suggested_split}]
-  merge_candidates: [{domain_a, domain_b, reason}]
-  new_domain_candidates: [{location, reason}]
-
-extracted_anti_patterns:
-  - pattern_id: string     # Which pattern this applies to
-    anti_pattern: string   # "Don't..." statement
-    evidence: [strings]    # Files showing the issue
-```
-
-**Merge protocol:**
-1. Extract all sections from import analysis
-2. For each `split_candidate` → prompt user for confirmation
-3. For each `merge_candidate` → prompt user for confirmation
-4. For each `extracted_anti_pattern` → add to pattern's `anti_patterns_summary`
-5. Add `coupling_analysis` summary to `observations.md`
+When import analysis completes:
+1. For each `split_candidate` → prompt user for confirmation
+2. For each `merge_candidate` → prompt user for confirmation
+3. For each `extracted_anti_pattern` → add to pattern's `anti_patterns_summary`
+4. Add `coupling_analysis` summary to `observations.md`

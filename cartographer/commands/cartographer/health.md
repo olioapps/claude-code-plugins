@@ -346,27 +346,26 @@ When `--strict` is enabled:
 
 ## Output Parsing Protocol
 
-### Auditor Agent Output
+**See:** `references/protocols/agent-output-parsing.md` for complete parsing specifications.
 
-**Delimiters:** `---AUDIT---` and `---END---`
+### Agents Used
 
-See `agents/auditor.md` for full output schema.
+| Agent | Delimiter | Purpose |
+|-------|-----------|---------|
+| auditor | `---AUDIT---` | Drift detection (paths, counts) |
+| atlas-validator | `---ATLAS-VALIDATION---` | Structure validation (links, fields) |
 
-**Key fields:**
-- `summary.status`: healthy|warning|critical
-- `critical_issues`, `high_issues`: blocking problems
-- `domain_status`: per-domain validation results
-- `recommendations`: suggested actions
+### Key Fields Summary
 
-### Atlas Validator Agent Output
+**Auditor output:**
+- `summary.status` - healthy/warning/critical
+- `critical_issues`, `high_issues` - Blocking problems
+- `domain_status` - Per-domain validation results
+- `recommendations` - Suggested actions
 
-**Delimiters:** `---ATLAS-VALIDATION---` and `---END---`
-
-See `agents/review/atlas-validator.md` for full output schema.
-
-**Key fields:**
-- `summary.status`: valid|warnings|errors
-- `errors`: blocking issues
-- `warnings`: advisory issues
-- `reference_integrity`: link validation results
-- `completeness`: field coverage stats
+**Atlas-validator output:**
+- `summary.status` - valid/warnings/errors
+- `errors` - Blocking issues
+- `warnings` - Advisory issues
+- `reference_integrity` - Link validation results
+- `completeness` - Field coverage stats
