@@ -43,11 +43,10 @@ test -f "{spec_file}" && echo "EXISTS" || echo "NOT_FOUND"
 - Extract composition ID if present
 
 **Load atlas files:**
-- `.claude/skills/atlas/references/schema.yaml`
-- `.claude/skills/atlas/references/conventions.yaml` - Pattern conventions
+- `.claude/skills/atlas/references/schema.yaml` - Unified codebase structure
 - Relevant pattern guides from spec
 
-**Extract from conventions.yaml for each pattern in spec:**
+**Extract from schema.yaml patterns section for each pattern in spec:**
 - File conventions (verify files created at correct locations)
 - Test conventions (verify tests created)
 - Registration steps (verify registration completed)
@@ -95,10 +94,10 @@ For each file in spec "New Files" / "Existing Files":
 
 ### 4. Review Against Patterns
 
-**For each pattern in spec, check against conventions.yaml:**
+**For each pattern in spec, check against schema.yaml patterns section:**
 
 1. **File Convention Check:**
-   - Expected location: `{file_convention from conventions.yaml}`
+   - Expected location: `{file_convention from schema.yaml patterns}`
    - Actual file created: {path} → ✅/❌
 
 2. **Test Convention Check:**
@@ -106,7 +105,7 @@ For each file in spec "New Files" / "Existing Files":
    - Test file exists: ✅/❌
 
 3. **Registration Check:**
-   - For each registration step in conventions.yaml:
+   - For each registration step in schema.yaml patterns:
    - {action} in `{file}` → ✅/❌
 
 4. **Critical Conventions Check (from pattern guide):**
@@ -130,7 +129,7 @@ For each file in spec "New Files" / "Existing Files":
 ```markdown
 ### Pattern Adherence: {pattern_name}
 
-**Conventions checked (from conventions.yaml):**
+**Conventions checked (from schema.yaml patterns):**
 - [ ] File at correct location (`{file_convention}`) - ✅/❌
 - [ ] Test at correct location (`{test_convention}`) - ✅/❌
 - [ ] Registration completed in `{registration_file}` - ✅/❌
@@ -144,7 +143,7 @@ For each file in spec "New Files" / "Existing Files":
 - [ ] Does NOT {anti_pattern_2} - ✅/❌ [{severity if violated}]
 
 **Reference implementation comparison:**
-- Compared against: `{example_file from conventions.yaml}`
+- Compared against: `{example_file from schema.yaml patterns}`
 - Follows established patterns: ✅/❌
 
 **Issues found:**

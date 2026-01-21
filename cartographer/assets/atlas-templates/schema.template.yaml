@@ -175,8 +175,96 @@ validation:
       command: {{this.command}}
 {{/each}}
 
-# References to companion files for lifecycle command integration
-companion_files:
-  conventions: references/conventions.yaml
-  compositions: references/compositions.yaml
-  observations: references/observations.md
+# =============================================================================
+# PATTERN CONVENTIONS
+# Keyword-to-pattern mapping and codebase-specific conventions for SDLC commands
+# =============================================================================
+
+# Keyword lookup table: maps user-facing keywords to pattern IDs
+keyword_index:
+{{#each keyword_index}}
+  {{this.keyword}}: {{this.pattern_id}}
+{{/each}}
+
+# Pattern-specific conventions (codebase-specific facts)
+patterns:
+{{#each patterns}}
+  {{this.id}}:
+    keywords:
+{{#each this.keywords}}
+      - {{this}}
+{{/each}}
+    file_convention: '{{this.file_convention}}'
+{{#if this.test_convention}}
+    test_convention: '{{this.test_convention}}'
+{{/if}}
+{{#if this.registration}}
+    registration:
+{{#each this.registration}}
+      - file: '{{this.file}}'
+        action: '{{this.action}}'
+{{/each}}
+{{/if}}
+    validation_commands:
+{{#each this.validation_commands}}
+      - '{{this}}'
+{{/each}}
+    pattern_guide: references/patterns/{{this.id}}.md
+{{#if this.example_files}}
+    example_files:
+{{#each this.example_files}}
+      - '{{this}}'
+{{/each}}
+{{/if}}
+{{#if this.related}}
+    related:
+{{#each this.related}}
+      - {{this}}
+{{/each}}
+{{/if}}
+
+{{/each}}
+
+# =============================================================================
+# PATTERN COMPOSITIONS
+# Multi-pattern task sequences for complex workflows
+# =============================================================================
+
+compositions:
+{{#each compositions}}
+  {{this.id}}:
+    description: '{{this.description}}'
+    patterns:
+{{#each this.patterns}}
+      - pattern: {{this.pattern}}
+        order: {{this.order}}
+{{#if this.condition}}
+        condition: '{{this.condition}}'
+{{/if}}
+{{/each}}
+    validation_sequence:
+{{#each this.validation_sequence}}
+      - '{{this}}'
+{{/each}}
+{{#if this.notes}}
+    notes: '{{this.notes}}'
+{{/if}}
+
+{{/each}}
+
+{{#if detected_correlations}}
+# Detected file change correlations (from git history analysis)
+detected_correlations:
+{{#each detected_correlations}}
+  - files_commonly_changed_together:
+{{#each this.files}}
+      - '{{this}}'
+{{/each}}
+    suggested_composition: '{{this.suggested_composition}}'
+    confidence: {{this.confidence}}
+
+{{/each}}
+{{/if}}
+
+# Reference to technology observations
+observations_file: references/observations.md

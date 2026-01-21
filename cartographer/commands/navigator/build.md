@@ -46,12 +46,11 @@ If not found → Error: "Spec file not found: {spec_file}"
 
 **Load atlas files:**
 - `.claude/skills/atlas/SKILL.md`
-- `.claude/skills/atlas/references/schema.yaml`
-- `.claude/skills/atlas/references/conventions.yaml` - Pattern conventions
+- `.claude/skills/atlas/references/schema.yaml` - Unified codebase structure
 - Relevant domain references (from spec "Atlas Context" section)
 - Relevant pattern guides (from spec "Pattern Guides" section)
 
-**Extract from conventions.yaml for each pattern in spec:**
+**Extract from schema.yaml patterns section for each pattern in spec:**
 - File conventions (where to create files)
 - Test conventions (where to create tests)
 - Registration steps (where to wire up new code)
@@ -169,7 +168,7 @@ Must match `{target_branch}` before proceeding.
 
 ### 5. Load Pattern Guidance
 
-**For each pattern in spec, load from conventions.yaml:**
+**For each pattern in spec, load from schema.yaml patterns section:**
 ```yaml
 {pattern_id}:
   file_convention: "{where to create file}"
@@ -185,7 +184,7 @@ Must match `{target_branch}` before proceeding.
 ```
 
 **For each pattern guide referenced in spec:**
-- Read full pattern guide from `patterns/{pattern_id}.md`
+- Read full pattern guide from `references/patterns/{pattern_id}.md`
 - Extract codebase-specific template
 - Extract implementation checklist
 
@@ -193,7 +192,7 @@ Must match `{target_branch}` before proceeding.
 ```
 When implementing {pattern_name}:
 
-File Conventions (from conventions.yaml):
+File Conventions (from schema.yaml patterns):
 - Create file at: {file_convention}
 - Create test at: {test_convention}
 

@@ -48,11 +48,11 @@ mkdir -p specs
 
 **Read atlas files:**
 - `.claude/skills/atlas/SKILL.md` - Domain and pattern routers
-- `.claude/skills/atlas/references/schema.yaml` - Full structure
-- `.claude/skills/atlas/references/conventions.yaml` - Pattern conventions and keywords
-- `.claude/skills/atlas/references/compositions.yaml` - Multi-pattern sequences
+- `.claude/skills/atlas/references/schema.yaml` - Unified codebase structure
 
 **Extract from schema.yaml:**
+
+*Structure:*
 - Domain list with purposes and key_files
 - File patterns
 - Task mappings (common workflows → entry points)
@@ -60,14 +60,12 @@ mkdir -p specs
 - Integrations (external services with config locations)
 - Config files inventory
 
-**Extract from conventions.yaml:**
+*Pattern Conventions (embedded in schema.yaml):*
 - `keyword_index` - Maps task keywords to pattern IDs
-- Pattern-specific file conventions
-- Pattern-specific validation commands
-- Registration steps per pattern
+- `patterns` section - Pattern-specific file conventions, validation commands, registration steps
 
-**Extract from compositions.yaml:**
-- Multi-pattern task sequences (e.g., `add_api_endpoint`)
+*Compositions (embedded in schema.yaml):*
+- `compositions` section - Multi-pattern task sequences (e.g., `add_api_endpoint`)
 - Pattern ordering and conditions
 - Prerequisites (required patterns/files)
 - Validation sequences
@@ -86,12 +84,12 @@ For each pattern identified, read `.claude/skills/atlas/references/patterns/{pat
 - Required patterns (match task to pattern router)
 - Complexity estimate: small / medium / large
 
-**Use conventions.yaml keyword_index:**
+**Use schema.yaml keyword_index:**
 - Extract keywords from task description
 - Look up each keyword in `keyword_index` to find pattern IDs
 - Example: "add user endpoint" → keywords ["endpoint", "user"] → patterns ["controllers", "providers"]
 
-**Use compositions.yaml for multi-pattern tasks:**
+**Use schema.yaml compositions for multi-pattern tasks:**
 - Check if matched patterns suggest a composition
 - Example: patterns ["controllers", "providers", "data_access"] → composition "add_api_endpoint"
 - Extract ordered pattern sequence with conditions
@@ -234,25 +232,25 @@ Compare implementation branch against this branch when reviewing changes.
 {List domains from atlas with paths}
 
 ### Pattern Sequence
-{IF composition matched from compositions.yaml:}
+{IF composition matched from schema.yaml compositions:}
 **Composition:** `{composition_id}` - {composition_description}
 
 | Order | Pattern | Condition | File Convention |
 |-------|---------|-----------|-----------------|
-| 1 | {pattern_id} | {condition} | `{file_convention from conventions.yaml}` |
-| 2 | {pattern_id} | {condition} | `{file_convention from conventions.yaml}` |
+| 1 | {pattern_id} | {condition} | `{file_convention from schema.yaml patterns}` |
+| 2 | {pattern_id} | {condition} | `{file_convention from schema.yaml patterns}` |
 | ... | ... | ... | ... |
 
 {IF no composition matched:}
 **Patterns involved:** {list of matched patterns}
 
-### File Conventions (from conventions.yaml)
+### File Conventions (from schema.yaml patterns)
 {For each pattern involved:}
 **{pattern_id}:**
 - File: `{file_convention}`
 - Test: `{test_convention}`
 
-### Registration Steps (from conventions.yaml)
+### Registration Steps (from schema.yaml patterns)
 {For each pattern with registration:}
 - [ ] {action} in `{file}`
 
@@ -325,7 +323,7 @@ Review these pattern guides before implementing:
 {build_command}
 ```
 
-### Pattern-Specific Validation (from conventions.yaml)
+### Pattern-Specific Validation (from schema.yaml patterns)
 {For each pattern involved, list its validation_commands:}
 **{pattern_id}:**
 ```bash
@@ -336,7 +334,7 @@ Review these pattern guides before implementing:
 {IF composition matched, include validation_sequence:}
 ### Composition Validation Sequence
 ```bash
-{validation_sequence from compositions.yaml}
+{validation_sequence from schema.yaml compositions}
 ```
 
 **Expected Result**: All commands complete successfully with no errors.

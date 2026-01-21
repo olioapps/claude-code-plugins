@@ -423,26 +423,32 @@ validation:
     - name: {Tests}
       command: {npm test}
 
-conventions:
-  patterns:
-    {pattern_name}:
-      keywords:
-        - {keyword1}
-        - {keyword2}
-      file_convention: "{path/pattern/convention}"
-      test_convention: "{test/file/convention}"
-      registration:
-        - file: "{registration/file/path}"
-          action: "{what to do there}"
-      validation_commands:
-        - "{npm run lint}"
-        - "{npm test -- pattern}"
-      example_files:
-        - "{actual/example1.ts}"
-        - "{actual/example2.ts}"
-      related:
-        - {related_pattern1}
-        - {related_pattern2}
+# Keyword lookup table: maps user keywords to pattern IDs
+keyword_index:
+  {keyword1}: {pattern_id}
+  {keyword2}: {pattern_id}
+  # e.g., endpoint: controllers, service: providers
+
+# Pattern conventions (codebase-specific)
+patterns:
+  {pattern_id}:
+    keywords:
+      - {keyword1}
+      - {keyword2}
+    file_convention: "{path/pattern/convention}"
+    test_convention: "{test/file/convention}"
+    registration:
+      - file: "{registration/file/path}"
+        action: "{what to do there}"
+    validation_commands:
+      - "{npm run lint}"
+      - "{npm test -- pattern}"
+    example_files:
+      - "{actual/example1.ts}"
+      - "{actual/example2.ts}"
+    related:
+      - {related_pattern1}
+      - {related_pattern2}
 
 technology_observations:
   - category: "{State Management|API Layer|Database|etc.}"

@@ -263,31 +263,34 @@ mkdir -p .claude/skills/atlas/references/patterns
 
 Using template from `assets/atlas-templates/schema.template.yaml`:
 
-1. Populate metadata section
-2. Add all domains with paths, counts, purposes
+**Structure section:**
+1. Populate metadata section (project, atlas_version, type, stack)
+2. Add all domains with paths, counts, purposes, key_files
 3. Add file patterns with examples
 4. Add task mappings based on detected patterns
-5. Add config files list
-6. Add testing configuration
-7. Add validation commands
+5. Add integrations (external services)
+6. Add async_infrastructure (if detected)
+7. Add config files list (with commands)
+8. Add testing configuration
+9. Add validation commands
 
-**Write to:** `.claude/skills/atlas/references/schema.yaml`
+**Pattern conventions section (embedded in schema.yaml):**
+1. Build keyword_index from all pattern keywords
+2. Add patterns section with for each pattern:
+   - keywords
+   - file_convention and test_convention
+   - registration steps
+   - validation_commands
+   - example_files
+   - related patterns
+   - pattern_guide reference
 
-### 5a. Generate conventions.yaml
-
-Using template from `assets/atlas-templates/conventions.template.yaml`:
-
-**Purpose:** Machine-readable conventions for `/chore` auto-injection
-
-1. Build keyword index from all pattern keywords
-2. For each pattern from surveyor conventions output:
-   - Extract keywords
-   - Extract file_convention and test_convention
-   - Extract registration steps
-   - Extract validation_commands
-   - List example files
-   - List related patterns
-3. Link to pattern_file in patterns/ directory
+**Compositions section (embedded in schema.yaml):**
+1. Use compositions detected by surveyor from git history analysis
+2. Include standard compositions that apply to this codebase type:
+   - Backend API: `add_api_endpoint`, `add_database_table`, `add_background_job`
+   - Frontend SPA: `add_frontend_feature`, `add_page_route`, `add_state_slice`
+3. Add detected_correlations if surveyor found file change patterns
 
 **Important:** Only include codebase-specific, objectively extractable facts:
 - ✅ File naming conventions (pattern matching)
@@ -298,42 +301,7 @@ Using template from `assets/atlas-templates/conventions.template.yaml`:
 - ❌ Generic anti-patterns (Claude already knows)
 - ❌ "When to use" philosophy
 
-**Write to:** `.claude/skills/atlas/references/conventions.yaml`
-
-### 5b. Generate compositions.yaml
-
-Using template from `assets/atlas-templates/compositions.template.yaml`:
-
-**Purpose:** Multi-pattern task sequences for lifecycle command guidance
-
-1. Use compositions detected by surveyor from git history analysis
-2. Map detected file correlations to composition patterns
-3. Include standard compositions that apply to this codebase type:
-   - Backend API: `add_api_endpoint`, `add_database_table`, `add_background_job`
-   - Frontend SPA: `add_frontend_feature`, `add_page_route`, `add_state_slice`
-   - Fullstack: Both backend and frontend compositions
-4. For each composition, define:
-   - Ordered pattern sequence
-   - Conditions for optional patterns (e.g., "if new table needed")
-   - Validation sequence to run after implementation
-
-**Composition structure:**
-```yaml
-compositions:
-  {composition_id}:
-    description: "{what this composition accomplishes}"
-    patterns:
-      - pattern: {pattern_id}
-        order: 1
-        condition: "always|if {condition}"
-    validation_sequence:
-      - "{validation command 1}"
-      - "{validation command 2}"
-```
-
-**Include detected_correlations section** if surveyor found file change patterns from git history.
-
-**Write to:** `.claude/skills/atlas/references/compositions.yaml`
+**Write to:** `.claude/skills/atlas/references/schema.yaml`
 
 ### 6. Generate SKILL.md
 
@@ -399,9 +367,7 @@ If no .atlas-ignore found in pre-flight:
 
 **Check all files created:**
 - SKILL.md exists and has content
-- schema.yaml is valid YAML
-- conventions.yaml is valid YAML
-- compositions.yaml is valid YAML
+- schema.yaml is valid YAML (includes patterns, keyword_index, compositions)
 - observations.md exists and has content
 - All referenced files exist
 - No broken links in SKILL.md
@@ -428,9 +394,7 @@ If no .atlas-ignore found in pre-flight:
 
 **Files created:**
 - `.claude/skills/atlas/SKILL.md`
-- `.claude/skills/atlas/references/schema.yaml`
-- `.claude/skills/atlas/references/conventions.yaml`
-- `.claude/skills/atlas/references/compositions.yaml`
+- `.claude/skills/atlas/references/schema.yaml` (unified: structure + patterns + compositions)
 - `.claude/skills/atlas/references/observations.md`
 {list of domain references}
 {list of pattern guides}
