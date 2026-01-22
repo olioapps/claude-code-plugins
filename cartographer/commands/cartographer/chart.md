@@ -1,4 +1,5 @@
 ---
+model: sonnet
 allowed-tools: Task, Glob, Grep, Read, Write, Bash(mkdir:*), Bash(test:*), Bash(ls:*), AskUserQuestion
 argument-hint: [--interactive|--auto] [--mode=domains|layers|hybrid] [context]
 description: Generate a complete atlas skill for codebase navigation
@@ -224,7 +225,7 @@ User context:
 The agent will return structured analysis in ---ANALYSIS--- format.
 ```
 
-**Parse surveyor output:**
+**Parse surveyor output using Output Parsing Protocol (see below):**
 - Extract metadata, domains, layers, file_patterns, config_files, testing, validation
 - Validate all required sections present
 - If parsing fails → Report error, suggest retry
@@ -436,7 +437,60 @@ If no .atlas-ignore found in pre-flight:
 - Attempt to fix or regenerate affected files
 - Warn user of partial generation
 
-### 11. Report Results
+### 11. Auto-Embed Essential Commands (Hybrid Distribution)
+
+**Purpose:** Embed frequently-used commands for plugin-free daily operation.
+
+**Commands to embed:**
+- `/where` - Quick path lookup (most used)
+- `/explore` - Domain deep-dive
+- `/calibrate` - Drift detection
+- `/capture` - Knowledge capture
+- `/spec-plan` - Create implementation specs
+- `/spec-build` - Execute specs
+- `/spec-review` - Review implementations
+
+**Commands that stay plugin-only:**
+- `/cartographer:chart` - Initial atlas generation (rare)
+- `/cartographer:rechart` - Full regeneration (rare)
+- `/cartographer:embed` - Re-export if needed
+
+**Locate embed templates:**
+Search for templates in plugin directory (same search as embed command).
+
+**Create commands directory:**
+```bash
+mkdir -p .claude/commands
+```
+
+**Export essential commands:**
+For each essential command:
+1. Read template from plugin `assets/embed-templates/`
+2. Write to `.claude/commands/` with embedded naming
+
+| Template | Output |
+|----------|--------|
+| `cartographer-where.template.md` | `.claude/commands/where.md` |
+| `cartographer-explore.template.md` | `.claude/commands/explore.md` |
+| `cartographer-calibrate.template.md` | `.claude/commands/calibrate.md` |
+| `cartographer-capture.template.md` | `.claude/commands/capture.md` |
+| `cartographer-validate.template.md` | `.claude/commands/validate.md` |
+| `cartographer-review.template.md` | `.claude/commands/atlas-review.md` |
+| `navigator-plan.template.md` | `.claude/commands/spec-plan.md` |
+| `navigator-build.template.md` | `.claude/commands/spec-build.md` |
+| `navigator-review.template.md` | `.claude/commands/spec-review.md` |
+| `navigator-iterate.template.md` | `.claude/commands/spec-iterate.md` |
+
+**Inline required agents:**
+Append agent definitions to commands that need them:
+- `calibrate.md` ← auditor agent
+- `validate.md` ← atlas-validator agent
+- `spec-review.md` ← pattern-enforcer, convention-checker, architecture-auditor, anti-pattern-detector
+
+**Create help file:**
+Write `.claude/commands/atlas-help.md` with command list and usage.
+
+### 12. Report Results
 
 ```markdown
 ## Atlas Generated Successfully
@@ -464,10 +518,29 @@ If no .atlas-ignore found in pre-flight:
 {list of domain references}
 {list of pattern guides}
 
+**Embedded commands (plugin-free):**
+- `.claude/commands/where.md` → `/where`
+- `.claude/commands/explore.md` → `/explore`
+- `.claude/commands/calibrate.md` → `/calibrate`
+- `.claude/commands/capture.md` → `/capture`
+- `.claude/commands/validate.md` → `/validate`
+- `.claude/commands/atlas-review.md` → `/atlas-review`
+- `.claude/commands/spec-plan.md` → `/spec-plan`
+- `.claude/commands/spec-build.md` → `/spec-build`
+- `.claude/commands/spec-review.md` → `/spec-review`
+- `.claude/commands/spec-iterate.md` → `/spec-iterate`
+
+**Plugin commands (for major operations):**
+- `/cartographer:chart` - Regenerate atlas from scratch
+- `/cartographer:rechart` - Incremental update
+- `/cartographer:embed` - Re-export all commands
+
 **Next steps:**
-- Run `/atlas` to use the generated skill
-- Run `/cartographer:calibrate` to verify accuracy
-- Run `/cartographer:explore <domain>` to enrich specific domains
+1. **Use the atlas:** It's auto-discovered - just ask questions like "where is X" or "how does Y work"
+2. **Update CLAUDE.md (optional):** Run `/orient` to add atlas awareness for human readers
+3. **Quick lookups:** Run `/where <query>` for fast path resolution
+4. **Plan features:** Run `/spec-plan <task>` to create specs with atlas context
+5. **Monitor health:** Run `/calibrate` periodically to detect drift
 ```
 
 ## Error Handling
@@ -505,3 +578,41 @@ If no .atlas-ignore found in pre-flight:
 - Extract codebase-specific anti-patterns
 
 **You do NOT explore the codebase directly. The agents do that.**
+
+---
+
+## Output Parsing Protocol
+
+**See:** `references/protocols/agent-output-parsing.md` for complete parsing specifications.
+
+### Agents Used
+
+| Agent | Delimiter | Purpose |
+|-------|-----------|---------|
+| surveyor (full) | `---ANALYSIS---` | Complete codebase analysis |
+| surveyor (quick) | `---QUICK_SCAN---` | Fast reconnaissance for interview |
+| import-analyzer | `---IMPORT_ANALYSIS---` | Import graph analysis (with `--deep`) |
+
+### Key Fields Summary
+
+**Surveyor output:**
+- `metadata` - Project type, stack, organization style
+- `domains` - Logical code groupings with paths and counts
+- `layers` - Architectural layers (if applicable)
+- `file_patterns` - Naming conventions
+- `patterns` - Pattern conventions with anti-patterns
+- `validation` - Build/test/lint commands
+
+**Import-analyzer output:**
+- `coupling_analysis` - Domain coupling metrics
+- `layering_violations` - Import boundary issues
+- `domain_adjustments` - Suggested splits/merges
+- `extracted_anti_patterns` - Discovered anti-patterns
+
+### Merge Protocol
+
+When import analysis completes:
+1. For each `split_candidate` → prompt user for confirmation
+2. For each `merge_candidate` → prompt user for confirmation
+3. For each `extracted_anti_pattern` → add to pattern's `anti_patterns_summary`
+4. Add `coupling_analysis` summary to `observations.md`

@@ -1,4 +1,5 @@
 ---
+model: sonnet
 allowed-tools: Task, Glob, Grep, Read, Write, Bash(mkdir:*), Bash(test:*), Bash(ls:*), Bash(git log:*), Bash(git diff:*), AskUserQuestion
 argument-hint: [--full | --domain <name>]
 description: Incrementally update atlas with auto-migration support
@@ -199,7 +200,7 @@ Options:
 {list if any}
 
 **Next steps:**
-- Run `/cartographer:calibrate` to verify accuracy
+- Run `/cartographer:health` to verify accuracy
 ```
 
 ---

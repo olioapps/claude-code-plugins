@@ -1,4 +1,5 @@
 ---
+model: sonnet
 allowed-tools: Task, Glob, Grep, Read, Write, Bash(test:*), Bash(find:*), AskUserQuestion
 argument-hint: <domain or path>
 description: Deep domain analysis to enrich atlas references
@@ -195,7 +196,7 @@ Return detailed analysis for enriched documentation.
 
 **Next steps:**
 - Run `/cartographer:explore {related_domain}` to explore connected areas
-- Run `/cartographer:calibrate` to verify overall atlas health
+- Run `/cartographer:health` to verify overall atlas health
 ```
 
 ---

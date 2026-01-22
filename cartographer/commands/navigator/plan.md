@@ -1,4 +1,5 @@
 ---
+model: opus
 allowed-tools: Task, Glob, Grep, Read, Write, Bash(git branch:*), Bash(git status:*), Bash(test:*), Bash(mkdir:*), AskUserQuestion
 argument-hint: <task description> [--base-branch <branch>]
 description: Create implementation spec with atlas context
@@ -37,7 +38,7 @@ Run `/cartographer:chart` to generate an atlas first.
 
 **Check atlas freshness:**
 - Read schema.yaml "Last Updated" timestamp
-- If >30 days old, warn: "⚠️ Atlas may be outdated. Consider `/cartographer:calibrate`"
+- If >30 days old, warn: "⚠️ Atlas may be outdated. Consider `/cartographer:health`"
 
 **Create specs directory:**
 ```bash
@@ -70,11 +71,21 @@ mkdir -p specs
 - Prerequisites (required patterns/files)
 - Validation sequences
 
+*Agent Context (if present):*
+- `agent_context.global` - Preferred tools, context loading order
+- `agent_context.domains.{domain}` - Entry files, key queries, write patterns
+
 **Load pattern guides for matched patterns:**
 For each pattern identified, read `.claude/skills/atlas/references/patterns/{pattern}.md`:
 - Critical conventions (must-follow rules)
 - Anti-patterns (common mistakes to avoid)
 - Template code (starting point for implementation)
+
+**Use agent_context for exploration (if present):**
+For each affected domain:
+- Read `entry_files` for quick context
+- Use `key_queries` patterns for targeted searches
+- Reference `write_patterns` for new file creation
 
 ### 3. Analyze Task
 
@@ -102,20 +113,37 @@ For each pattern identified, read `.claude/skills/atlas/references/patterns/{pat
 - Match task type to relevant patterns
 - Load pattern references for conventions
 
-### 4. Research Codebase
+### 4. Research Codebase (Atlas-First)
+
+**Research Priority Order:**
+
+| Priority | Source | When to Use |
+|----------|--------|-------------|
+| 1. PRIMARY | schema.yaml patterns, conventions, anti-patterns | Always check first |
+| 2. SECONDARY | Domain reference files for affected domains | For domain-specific context |
+| 3. TERTIARY | observations.md for stack-specific notes | For technology decisions |
+| 4. EXTERNAL | Context7/web search | Only if atlas doesn't cover it |
+
+**Always cite atlas sources:**
+- "Per schema.yaml patterns.{pattern_id}..."
+- "Per references/{domain}.md..."
+- "Per observations.md..."
 
 **For each identified domain:**
-- Read domain reference file
-- Identify key files relevant to task
-- Note existing patterns and conventions
+- Read domain reference file from atlas
+- Cross-reference with schema.yaml domain entry
+- Identify key files from atlas `key_files` field
+- Note existing patterns from schema.yaml `patterns` section
 
-**Look for similar implementations:**
-- Search for related features
-- Identify code to reference or extend
+**Look for similar implementations (from atlas first):**
+- Check `example_files` in schema.yaml patterns
+- Read referenced example implementations
+- Only search codebase if atlas examples insufficient
 
 **Check for potential conflicts:**
-- Files that might be affected
-- Dependencies to consider
+- Review `related` patterns in schema.yaml
+- Check `registration` steps for affected patterns
+- Review `anti_patterns_summary` for common mistakes
 
 ### 5. Detect Prerequisites
 
@@ -391,7 +419,7 @@ Before finalizing spec:
 | Error | Action | Recovery |
 |-------|--------|----------|
 | No atlas | Block with message | Run /cartographer:chart |
-| Atlas stale | Warn, continue | Suggest /cartographer:calibrate |
+| Atlas stale | Warn, continue | Suggest /cartographer:health |
 | No domains match | Ask for clarification | User provides more context |
 | Spec exists | Prompt for action | Overwrite / rename / view existing |
 

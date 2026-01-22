@@ -1,13 +1,16 @@
 ---
+model: sonnet
 allowed-tools: Task, Glob, Grep, Read, Write, Bash(git diff:*), Bash(git log:*), Bash(git status:*), Bash(mkdir:*), AskUserQuestion
-argument-hint: <spec file>
+argument-hint: <spec file> [--no-agents] [--sequential]
 description: Review implementation against spec and patterns (outputs JSON for iteration)
 ---
 
 ## Context
 
-Arguments: `/navigator:review <SPEC_FILE>`
+Arguments: `/navigator:review <SPEC_FILE> [OPTIONS]`
 - **<spec_file>** - Path to spec file that was implemented
+- **--no-agents** - Skip multi-agent review (faster, less thorough)
+- **--sequential** - Run review agents sequentially instead of parallel
 
 Current directory: !`pwd`
 Current branch: !`git branch --show-current`
@@ -150,9 +153,51 @@ For each file in spec "New Files" / "Existing Files":
 - `{file}:{line}` - {description} [**{severity}**]
 ```
 
-### 5. Code Quality Review
+### 5. Multi-Agent Review (default)
 
-**Check implementation quality:**
+**Launch review agents (parallel by default, sequential with --sequential):**
+
+Using Task tool, spawn these agents:
+
+1. **pattern-enforcer** (`agents/review/pattern-enforcer.md`)
+   - Input: Changed files, schema.yaml
+   - Output: Pattern violations with atlas references
+
+2. **convention-checker** (`agents/review/convention-checker.md`)
+   - Input: New files, schema.yaml
+   - Output: Naming/location violations
+
+3. **architecture-auditor** (`agents/review/architecture-auditor.md`)
+   - Input: Changed files, schema.yaml layers
+   - Output: Layer boundary violations
+
+4. **anti-pattern-detector** (`agents/review/anti-pattern-detector.md`)
+   - Input: Changed files, schema.yaml anti_patterns_summary
+   - Output: Codebase-specific anti-pattern detections
+
+**Aggregate agent findings:**
+
+```markdown
+### Multi-Agent Review Results
+
+| Agent | Findings | Severity |
+|-------|----------|----------|
+| Pattern Enforcer | {count} violations | {max_severity} |
+| Convention Checker | {count} violations | {max_severity} |
+| Architecture Auditor | {count} violations | {max_severity} |
+| Anti-Pattern Detector | {count} detections | {max_severity} |
+
+**Total Issues:** {sum}
+```
+
+**Classify findings by severity:**
+- 🔴 `error` from any agent → **Blocker**
+- 🟡 `warning` from any agent → **Tech Debt**
+- Recommendations → **Skippable**
+
+### 5b. Lightweight Review (if --no-agents)
+
+**Skip agents and do manual quality check:**
 
 - **Readability**: Is the code clear and self-documenting?
 - **Consistency**: Does it match existing codebase style?
@@ -193,6 +238,7 @@ For each file in spec "New Files" / "Existing Files":
 **Spec:** `{spec_file}`
 **Branch:** `{current_branch}`
 **Base:** `{base_branch}`
+**Review Mode:** {Standard | Multi-Agent}
 
 ---
 
@@ -204,6 +250,16 @@ For each file in spec "New Files" / "Existing Files":
 | Pattern Adherence | {A/B/C/F} | {X}/{Y} conventions followed |
 | Code Quality | {A/B/C/F} | {notes} |
 | Validation | {A/B/C/F} | {pass/fail counts} |
+
+{IF multi-agent review:}
+### Agent Review Summary
+
+| Agent | Violations | Max Severity |
+|-------|------------|--------------|
+| Pattern Enforcer | {count} | {error/warning/none} |
+| Convention Checker | {count} | {error/warning/none} |
+| Architecture Auditor | {count} | {error/warning/none} |
+| Anti-Pattern Detector | {count} | {error/warning/none} |
 
 **Overall Status:** {✅ Ready for PR | ⚠️ Needs attention | ❌ Significant issues}
 
@@ -232,6 +288,23 @@ For each file in spec "New Files" / "Existing Files":
 
 #### ✅ Successes
 {list things done well}
+
+{IF multi-agent review:}
+---
+
+### Agent-Specific Findings
+
+#### Pattern Enforcer
+{list pattern violations with atlas references}
+
+#### Convention Checker
+{list naming/location violations}
+
+#### Architecture Auditor
+{list layer boundary violations}
+
+#### Anti-Pattern Detector
+{list codebase-specific anti-patterns detected}
 
 ---
 
@@ -300,6 +373,7 @@ mkdir -p specs/reviews
   "base_branch": "{base_branch}",
   "current_branch": "{current_branch}",
   "timestamp": "{ISO-8601 timestamp}",
+  "review_mode": "{standard|multi-agent}",
   "scores": {
     "spec_compliance": "{A/B/C/F}",
     "pattern_adherence": "{A/B/C/F}",
@@ -319,9 +393,28 @@ mkdir -p specs/reviews
       "location": "{file}:{line}",
       "severity": "blocker|tech_debt|skippable",
       "resolution": "{how to fix}",
-      "pattern_violated": "{pattern_id or null}"
+      "pattern_violated": "{pattern_id or null}",
+      "source_agent": "{pattern-enforcer|convention-checker|architecture-auditor|anti-pattern-detector|manual}"
     }
   ],
+  "agent_results": {
+    "pattern_enforcer": {
+      "violations": {count},
+      "max_severity": "{error|warning|none}"
+    },
+    "convention_checker": {
+      "violations": {count},
+      "max_severity": "{error|warning|none}"
+    },
+    "architecture_auditor": {
+      "violations": {count},
+      "max_severity": "{error|warning|none}"
+    },
+    "anti_pattern_detector": {
+      "detections": {count},
+      "max_severity": "{error|warning|none}"
+    }
+  },
   "validation_results": [
     {
       "command": "{command}",
@@ -358,37 +451,40 @@ Or use the JSON output programmatically:
   specs/reviews/{spec-name}-review.json
 ```
 
+### 10. Atlas Refinement - Incremental Pattern Learning
+
+**See:** `references/review/discovery-protocol.md` for complete atlas refinement workflow.
+
+**Summary:** During review, track discoveries that should improve the atlas:
+- New patterns not yet documented
+- New anti-patterns discovered during review
+- Missing conventions the code follows but atlas doesn't capture
+- Unclassified files that don't match any pattern
+
+**Workflow:**
+1. Detect undocumented patterns during review
+2. Write discoveries to `.claude/skills/atlas/staging/discoveries.yaml`
+3. Prompt user to capture discoveries to atlas
+4. Include discoveries in JSON output
+
 ---
 
 ## Scoring Criteria
 
-### Spec Compliance
-- **A**: All success criteria met, all expected files present
-- **B**: 80%+ criteria met, most files present
-- **C**: 60%+ criteria met, some gaps
-- **F**: <60% criteria met or major gaps
+**See:** `references/review/scoring-criteria.md` for complete grading rubrics.
 
-### Pattern Adherence
-- **A**: All conventions followed, no anti-patterns
-- **B**: Most conventions followed, minor deviations
-- **C**: Some conventions followed, notable deviations
-- **F**: Patterns largely ignored
-
-### Code Quality
-- **A**: Clean, readable, well-organized
-- **B**: Good quality with minor issues
-- **C**: Acceptable but needs improvement
-- **F**: Significant quality concerns
-
-### Validation
-- **A**: All checks pass
-- **B**: Minor warnings only
-- **C**: Some failures, non-critical
-- **F**: Critical failures
+| Category | A | B | C | F |
+|----------|---|---|---|---|
+| Spec Compliance | 100% criteria met | 80%+ met | 60%+ met | <60% met |
+| Pattern Adherence | All conventions | Most followed | Some followed | Largely ignored |
+| Code Quality | Clean, readable | Minor issues | Needs improvement | Significant concerns |
+| Validation | All pass | Warnings only | Non-critical failures | Critical failures |
 
 ---
 
 ## Error Handling
+
+**See:** `references/review/error-recovery.md` for complete error handling and recovery procedures.
 
 | Error | Action | Recovery |
 |-------|--------|----------|
@@ -396,6 +492,37 @@ Or use the JSON output programmatically:
 | No spec | Error with path | User provides correct path |
 | No changes | Note implementation may be missing | Check if on correct branch |
 | Validation fails | Report failures | User fixes or accepts |
+| Agent timeout | Retry once, then skip | Continue with partial |
+| Parse error | Report parse issue | Check agent output manually |
+
+**Key recovery behaviors:**
+- Agent failures after 3 attempts → Continue with partial results
+- Validation command failures → Report but don't block entire review
+- Preserve partial state in `.claude/review-partial.json`
+
+---
+
+## JSON Output Specification
+
+**See:** `references/review/json-schema.md` for complete JSON output specification.
+
+**Output location:** `specs/reviews/{spec-name}-review.json`
+
+**Key sections:**
+- `summary` - Overall grade, blocker/debt/skippable counts, recommendation
+- `scores` - Per-category grades (spec_compliance, pattern_adherence, code_quality, validation)
+- `atlas_context` - Patterns involved, composition used
+- `blockers[]`, `tech_debt[]`, `skippable[]` - Issue arrays with file:line references
+- `validation_results` - Command execution results
+- `discoveries` - Atlas learning opportunities
+- `files_reviewed` - Per-file grades and violations
+
+**Consumers:**
+| Consumer | Purpose |
+|----------|---------|
+| CI/CD pipelines | Block merge on blockers |
+| `/navigator:build --resume` | Continue after fixes |
+| `/cartographer:capture` | Import discoveries |
 
 ## Responsibilities
 
@@ -408,3 +535,34 @@ Or use the JSON output programmatically:
 - Provide clear recommendations
 
 **You are an objective reviewer. Be thorough but constructive.**
+
+---
+
+## Output Parsing Protocol
+
+**See:** `references/protocols/agent-output-parsing.md` for complete parsing specifications.
+
+### Review Agents
+
+| Agent | Delimiter | Purpose |
+|-------|-----------|---------|
+| pattern-enforcer | `---PATTERN-ENFORCEMENT---` | Validates code against documented patterns |
+| architecture-auditor | `---ARCHITECTURE-AUDIT---` | Validates layer boundaries |
+| anti-pattern-detector | `---ANTI-PATTERN-SCAN---` | Scans for documented anti-patterns |
+| convention-checker | `---CONVENTION-CHECK---` | Validates file naming and locations |
+
+### Aggregation
+
+After parsing all agent outputs:
+1. Collect all violations from all agents
+2. Classify: `error` → blocker, `warning` → tech_debt, recommendations → skippable
+3. Deduplicate same file:line from multiple agents
+4. Sort by severity (desc), then file path
+
+### Severity Mapping
+
+| Agent Severity | Review Severity |
+|----------------|-----------------|
+| `error` | blocker |
+| `warning` | tech_debt |
+| (recommendations) | skippable |
