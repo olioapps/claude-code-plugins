@@ -1,5 +1,5 @@
 ---
-model: sonnet
+model: opus
 allowed-tools: Task, Glob, Grep, Read, Write, Bash(git branch:*), Bash(git status:*), Bash(test:*), Bash(mkdir:*), AskUserQuestion
 argument-hint: <task description> [--base-branch <branch>]
 description: Create implementation spec with atlas context
